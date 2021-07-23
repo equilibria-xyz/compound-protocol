@@ -5,7 +5,7 @@ import "../../contracts/Governance/GovernorBravoDelegate.sol";
 
 contract GovernorBravoImmutable is GovernorBravoDelegate {
 
-     constructor(
+    constructor(
             address timelock_,
             address comp_,
             address admin_,
@@ -19,7 +19,7 @@ contract GovernorBravoImmutable is GovernorBravoDelegate {
     }
 
 
-    function initialize(address timelock_, address comp_, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) public {
+    function initialize(address timelock_, address comp_, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_) override public {
         require(msg.sender == admin, "GovernorBravo::initialize: admin only");
         require(address(timelock) == address(0), "GovernorBravo::initialize: can only initialize once");
 

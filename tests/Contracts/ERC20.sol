@@ -11,14 +11,14 @@ interface ERC20Base {
     function balanceOf(address who) external view returns (uint256);
 }
 
-contract ERC20 is ERC20Base {
-    function transfer(address to, uint256 value) external returns (bool);
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
+abstract contract ERC20 is ERC20Base {
+    function transfer(address to, uint256 value) virtual external returns (bool);
+    function transferFrom(address from, address to, uint256 value) virtual external returns (bool);
 }
 
-contract ERC20NS is ERC20Base {
-    function transfer(address to, uint256 value) external;
-    function transferFrom(address from, address to, uint256 value) external;
+abstract contract ERC20NS is ERC20Base {
+    function transfer(address to, uint256 value) virtual external;
+    function transferFrom(address from, address to, uint256 value) virtual external;
 }
 
 /**

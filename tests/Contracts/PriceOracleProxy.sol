@@ -9,9 +9,6 @@ interface V1PriceOracleInterface {
 }
 
 contract PriceOracleProxy is PriceOracle {
-    /// @notice Indicator that this is a PriceOracle contract (for inspection)
-    bool public constant isPriceOracle = true;
-
     /// @notice The v1 price oracle, which will continue to serve prices for v1 assets
     V1PriceOracleInterface public v1PriceOracle;
 
@@ -73,7 +70,7 @@ contract PriceOracleProxy is PriceOracle {
      * @param cToken The cToken to get the underlying price of
      * @return The underlying asset price mantissa (scaled by 1e18)
      */
-    function getUnderlyingPrice(CToken cToken) public view returns (uint) {
+    function getUnderlyingPrice(CToken cToken) override public view returns (uint) {
         address cTokenAddress = address(cToken);
 
         if (cTokenAddress == cEthAddress) {
