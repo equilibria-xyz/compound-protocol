@@ -147,6 +147,7 @@ abstract contract ERC20 is ERC20Basic {
  * Based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
  */
 contract StandardToken is ERC20, BasicToken {
+  using SafeMath for uint256;
 
   mapping (address => mapping (address => uint256)) internal allowed;
 
@@ -276,7 +277,7 @@ abstract contract DetailedERC20 is ERC20 {
   string public symbol;
   uint8 public decimals;
 
-  constructor(string memory _name, string memory _symbol, uint8 _decimals) public {
+  constructor(string memory _name, string memory _symbol, uint8 _decimals) {
     name = _name;
     symbol = _symbol;
     decimals = _decimals;
@@ -355,6 +356,8 @@ contract Ownable {
  * Based on code by TokenMarketNet: https://github.com/TokenMarketNet/ico/blob/master/contracts/MintableToken.sol
  */
 contract MintableToken is StandardToken, Ownable {
+  using SafeMath for uint256;
+
   event Mint(address indexed to, uint256 amount);
   event MintFinished();
 
@@ -411,6 +414,7 @@ contract MintableToken is StandardToken, Ownable {
  * @dev Token that can be irreversibly burned (destroyed).
  */
 contract BurnableToken is BasicToken {
+  using SafeMath for uint256;
 
   event Burn(address indexed burner, uint256 value);
 

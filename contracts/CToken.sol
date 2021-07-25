@@ -224,7 +224,7 @@ abstract contract CToken is CTokenInterface, Exponential {
      * @dev Function to simply retrieve block number
      *  This exists mainly for inheriting test contracts to stub this result.
      */
-    function getBlockNumber() internal view returns (uint) {
+    function getBlockNumber() virtual internal view returns (uint) {
         return block.number;
     }
 
@@ -336,7 +336,7 @@ abstract contract CToken is CTokenInterface, Exponential {
      * @dev This function does not accrue interest before calculating the exchange rate
      * @return (error code, calculated exchange rate scaled by 1e18)
      */
-    function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    function exchangeRateStoredInternal() virtual internal view returns (MathError, uint) {
         uint _totalSupply = totalSupply;
         if (_totalSupply == 0) {
             /*
