@@ -110,7 +110,7 @@ contract CTokenStorage {
     uint public constant protocolSeizeShareMantissa = 2.8e16; //2.8%
 }
 
-abstract contract CTokenInterface is CTokenStorage {
+abstract contract CTokenInterface is TokenErrorReporter, CTokenStorage {
     /**
      * @notice Indicator that this is a CToken contract (for inspection)
      */
