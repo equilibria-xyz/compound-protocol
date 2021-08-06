@@ -9,7 +9,7 @@ import "./InterestRateModel.sol";
   * @author Arr00
   * @notice Supports only for V2 cTokens
   */
-contract JumpRateModelV2 is BaseJumpRateModelV2  {
+contract JumpRateModelV2 is InterestRateModel, BaseJumpRateModelV2  {
 
 	/**
      * @notice Calculates the current borrow rate per block
