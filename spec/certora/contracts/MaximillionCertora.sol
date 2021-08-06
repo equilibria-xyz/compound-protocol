@@ -13,7 +13,7 @@ contract MaximillionCertora is Maximillion {
         return account.balance;
     }
 
-    function repayBehalf(address borrower) public payable {
+    function repayBehalf(address borrower) override public payable {
         return super.repayBehalf(borrower);
     }
 }

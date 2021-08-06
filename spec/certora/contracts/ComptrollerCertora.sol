@@ -10,7 +10,7 @@ contract ComptrollerCertora is Comptroller {
         address account,
         CToken cTokenModify,
         uint redeemTokens,
-        uint borrowAmount) internal view returns (Error, uint, uint) {
+        uint borrowAmount) override internal view returns (Error, uint, uint) {
         if (switcher == 0)
             return (Error.NO_ERROR, liquidityOrShortfall, 0);
         if (switcher == 1)
