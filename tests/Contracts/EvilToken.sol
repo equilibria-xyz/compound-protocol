@@ -8,7 +8,6 @@ import "./FaucetToken.sol";
   * @notice A simple test token that fails certain operations
   */
 contract EvilToken is FaucetToken {
-    using SafeMath for uint256;
 
     bool public fail;
 
@@ -25,8 +24,8 @@ contract EvilToken is FaucetToken {
         if (fail) {
             return false;
         }
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount);
-        balanceOf[dst] = balanceOf[dst].add(amount);
+        balanceOf[msg.sender] = balanceOf[msg.sender] - amount;
+        balanceOf[dst] = balanceOf[dst] + amount;
         emit Transfer(msg.sender, dst, amount);
         return true;
     }
@@ -35,9 +34,9 @@ contract EvilToken is FaucetToken {
         if (fail) {
             return false;
         }
-        balanceOf[src] = balanceOf[src].sub(amount);
-        balanceOf[dst] = balanceOf[dst].add(amount);
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount);
+        balanceOf[src] = balanceOf[src] - amount;
+        balanceOf[dst] = balanceOf[dst] + amount;
+        allowance[src][msg.sender] = allowance[src][msg.sender] - amount;
         emit Transfer(src, dst, amount);
         return true;
     }
