@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.8.6;
 
 import "./FaucetToken.sol";
 
@@ -8,6 +8,7 @@ import "./FaucetToken.sol";
   * @notice A simple test token that fails certain operations
   */
 contract EvilToken is FaucetToken {
+
     bool public fail;
 
     constructor(uint256 _initialAmount, string memory _tokenName, uint8 _decimalUnits, string memory _tokenSymbol) public
@@ -19,23 +20,23 @@ contract EvilToken is FaucetToken {
         fail = _fail;
     }
 
-    function transfer(address dst, uint256 amount) external returns (bool) {
+    function transfer(address dst, uint256 amount) override external returns (bool) {
         if (fail) {
             return false;
         }
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount);
-        balanceOf[dst] = balanceOf[dst].add(amount);
+        balanceOf[msg.sender] = balanceOf[msg.sender] - amount;
+        balanceOf[dst] = balanceOf[dst] + amount;
         emit Transfer(msg.sender, dst, amount);
         return true;
     }
 
-    function transferFrom(address src, address dst, uint256 amount) external returns (bool) {
+    function transferFrom(address src, address dst, uint256 amount) override external returns (bool) {
         if (fail) {
             return false;
         }
-        balanceOf[src] = balanceOf[src].sub(amount);
-        balanceOf[dst] = balanceOf[dst].add(amount);
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount);
+        balanceOf[src] = balanceOf[src] - amount;
+        balanceOf[dst] = balanceOf[dst] + amount;
+        allowance[src][msg.sender] = allowance[src][msg.sender] - amount;
         emit Transfer(src, dst, amount);
         return true;
     }

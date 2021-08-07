@@ -1,6 +1,4 @@
-pragma solidity ^0.5.16;
-
-import "../../contracts/SafeMath.sol";
+pragma solidity ^0.8.6;
 
 interface ERC20Base {
     event Approval(address indexed owner, address indexed spender, uint256 value);
@@ -11,14 +9,14 @@ interface ERC20Base {
     function balanceOf(address who) external view returns (uint256);
 }
 
-contract ERC20 is ERC20Base {
-    function transfer(address to, uint256 value) external returns (bool);
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
+abstract contract ERC20 is ERC20Base {
+    function transfer(address to, uint256 value) virtual external returns (bool);
+    function transferFrom(address from, address to, uint256 value) virtual external returns (bool);
 }
 
-contract ERC20NS is ERC20Base {
-    function transfer(address to, uint256 value) external;
-    function transferFrom(address from, address to, uint256 value) external;
+abstract contract ERC20NS is ERC20Base {
+    function transfer(address to, uint256 value) virtual external;
+    function transferFrom(address from, address to, uint256 value) virtual external;
 }
 
 /**
@@ -27,14 +25,12 @@ contract ERC20NS is ERC20Base {
  *  See https://github.com/ethereum/EIPs/issues/20
  */
 contract StandardToken is ERC20 {
-    using SafeMath for uint256;
-
     string public name;
     string public symbol;
     uint8 public decimals;
-    uint256 public totalSupply;
-    mapping (address => mapping (address => uint256)) public allowance;
-    mapping(address => uint256) public balanceOf;
+    uint256 override public totalSupply;
+    mapping (address => mapping (address => uint256)) override public allowance;
+    mapping(address => uint256) override public balanceOf;
 
     constructor(uint256 _initialAmount, string memory _tokenName, uint8 _decimalUnits, string memory _tokenSymbol) public {
         totalSupply = _initialAmount;
@@ -44,22 +40,25 @@ contract StandardToken is ERC20 {
         decimals = _decimalUnits;
     }
 
-    function transfer(address dst, uint256 amount) external returns (bool) {
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount, "Insufficient balance");
-        balanceOf[dst] = balanceOf[dst].add(amount, "Balance overflow");
+    function transfer(address dst, uint256 amount) virtual override external returns (bool) {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] += amount;
+        balanceOf[dst] += amount;
         emit Transfer(msg.sender, dst, amount);
         return true;
     }
 
-    function transferFrom(address src, address dst, uint256 amount) external returns (bool) {
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount, "Insufficient allowance");
-        balanceOf[src] = balanceOf[src].sub(amount, "Insufficient balance");
-        balanceOf[dst] = balanceOf[dst].add(amount, "Balance overflow");
+    function transferFrom(address src, address dst, uint256 amount) virtual override external returns (bool) {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        require(allowance[src][msg.sender] >= amount, "Insufficient allowance");
+        allowance[src][msg.sender] -= amount;
+        balanceOf[src] -= amount;
+        balanceOf[dst] += amount;
         emit Transfer(src, dst, amount);
         return true;
     }
 
-    function approve(address _spender, uint256 amount) external returns (bool) {
+    function approve(address _spender, uint256 amount) virtual override external returns (bool) {
         allowance[msg.sender][_spender] = amount;
         emit Approval(msg.sender, _spender, amount);
         return true;
@@ -72,14 +71,12 @@ contract StandardToken is ERC20 {
  *  See https://medium.com/coinmonks/missing-return-value-bug-at-least-130-tokens-affected-d67bf08521ca
  */
 contract NonStandardToken is ERC20NS {
-    using SafeMath for uint256;
-
     string public name;
     uint8 public decimals;
     string public symbol;
-    uint256 public totalSupply;
-    mapping (address => mapping (address => uint256)) public allowance;
-    mapping(address => uint256) public balanceOf;
+    uint256 override public totalSupply;
+    mapping (address => mapping (address => uint256)) override public allowance;
+    mapping(address => uint256) override public balanceOf;
 
     constructor(uint256 _initialAmount, string memory _tokenName, uint8 _decimalUnits, string memory _tokenSymbol) public {
         totalSupply = _initialAmount;
@@ -89,20 +86,23 @@ contract NonStandardToken is ERC20NS {
         decimals = _decimalUnits;
     }
 
-    function transfer(address dst, uint256 amount) external {
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount, "Insufficient balance");
-        balanceOf[dst] = balanceOf[dst].add(amount, "Balance overflow");
+    function transfer(address dst, uint256 amount) override external {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] += amount;
+        balanceOf[dst] += amount;
         emit Transfer(msg.sender, dst, amount);
     }
 
-    function transferFrom(address src, address dst, uint256 amount) external {
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount, "Insufficient allowance");
-        balanceOf[src] = balanceOf[src].sub(amount, "Insufficient balance");
-        balanceOf[dst] = balanceOf[dst].add(amount, "Balance overflow");
+    function transferFrom(address src, address dst, uint256 amount) override external {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        require(allowance[src][msg.sender] >= amount, "Insufficient allowance");
+        allowance[src][msg.sender] -= amount;
+        balanceOf[src] -= amount;
+        balanceOf[dst] += amount;
         emit Transfer(src, dst, amount);
     }
 
-    function approve(address _spender, uint256 amount) external returns (bool) {
+    function approve(address _spender, uint256 amount) override external returns (bool) {
         allowance[msg.sender][_spender] = amount;
         emit Approval(msg.sender, _spender, amount);
         return true;
@@ -131,25 +131,28 @@ contract ERC20Harness is StandardToken {
         balanceOf[_account] = _amount;
     }
 
-    function transfer(address dst, uint256 amount) external returns (bool success) {
+    function transfer(address dst, uint256 amount) override external returns (bool success) {
         // Added for testing purposes
         if (failTransferToAddresses[dst]) {
             return false;
         }
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount, "Insufficient balance");
-        balanceOf[dst] = balanceOf[dst].add(amount, "Balance overflow");
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] += amount;
+        balanceOf[dst] += amount;
         emit Transfer(msg.sender, dst, amount);
         return true;
     }
 
-    function transferFrom(address src, address dst, uint256 amount) external returns (bool success) {
+    function transferFrom(address src, address dst, uint256 amount) override external returns (bool success) {
         // Added for testing purposes
         if (failTransferFromAddresses[src]) {
             return false;
         }
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount, "Insufficient allowance");
-        balanceOf[src] = balanceOf[src].sub(amount, "Insufficient balance");
-        balanceOf[dst] = balanceOf[dst].add(amount, "Balance overflow");
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        require(allowance[src][msg.sender] >= amount, "Insufficient allowance");
+        allowance[src][msg.sender] -= amount;
+        balanceOf[src] -= amount;
+        balanceOf[dst] += amount;
         emit Transfer(src, dst, amount);
         return true;
     }

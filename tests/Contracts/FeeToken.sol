@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.8.6;
 
 import "./FaucetToken.sol";
 
@@ -23,23 +23,23 @@ contract FeeToken is FaucetToken {
         owner = _owner;
     }
 
-    function transfer(address dst, uint amount) public returns (bool) {
-        uint fee = amount.mul(basisPointFee).div(10000);
-        uint net = amount.sub(fee);
-        balanceOf[owner] = balanceOf[owner].add(fee);
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount);
-        balanceOf[dst] = balanceOf[dst].add(net);
+    function transfer(address dst, uint amount) override public returns (bool) {
+        uint fee = amount * basisPointFee / 10000;
+        uint net = amount - fee;
+        balanceOf[owner] = balanceOf[owner] + fee;
+        balanceOf[msg.sender] = balanceOf[msg.sender] - amount;
+        balanceOf[dst] = balanceOf[dst] + net;
         emit Transfer(msg.sender, dst, amount);
         return true;
     }
 
-    function transferFrom(address src, address dst, uint amount) public returns (bool) {
-        uint fee = amount.mul(basisPointFee).div(10000);
-        uint net = amount.sub(fee);
-        balanceOf[owner] = balanceOf[owner].add(fee);
-        balanceOf[src] = balanceOf[src].sub(amount);
-        balanceOf[dst] = balanceOf[dst].add(net);
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount);
+    function transferFrom(address src, address dst, uint amount) override public returns (bool) {
+        uint fee = amount * basisPointFee / 10000;
+        uint net = amount - fee;
+        balanceOf[owner] = balanceOf[owner] + fee;
+        balanceOf[src] = balanceOf[src] - amount;
+        balanceOf[dst] = balanceOf[dst] + net;
+        allowance[src][msg.sender] = allowance[src][msg.sender] - amount;
         emit Transfer(src, dst, amount);
         return true;
     }
