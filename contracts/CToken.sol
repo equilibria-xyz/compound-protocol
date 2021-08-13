@@ -12,7 +12,7 @@ import "./InterestRateModel.sol";
  * @notice Abstract base for CTokens
  * @author Compound
  */
-abstract contract CToken is CTokenInterface, Exponential {
+abstract contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
     /**
      * @notice Initialize the money market
      * @param comptroller_ The address of the Comptroller
