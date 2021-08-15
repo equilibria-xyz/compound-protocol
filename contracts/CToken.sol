@@ -123,7 +123,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         // unused function
         // comptroller.transferVerify(address(this), src, dst, tokens);
 
-        return 0;
+        return uint(Error.NO_ERROR);
     }
 
     /**
@@ -471,7 +471,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
-            return (fail(Error(error), FailureInfo.MINT_ACCRUE_INTEREST_FAILED), 0);
+            revert MintAccrueInterestFailed(error);
         }
         // mintFresh emits the actual Mint event if successful and logs on errors, so we don't need to
         return mintFresh(msg.sender, mintAmount);
@@ -498,12 +498,12 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if mint not allowed */
         uint allowed = comptroller.mintAllowed(address(this), minter, mintAmount);
         if (allowed != 0) {
-            return (failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.MINT_COMPTROLLER_REJECTION, allowed), 0);
+            revert MintComptrollerRejection(allowed);
         }
 
         /* Verify market's block number equals current block number */
         if (accrualBlockNumber != getBlockNumber()) {
-            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.MINT_FRESHNESS_CHECK), 0);
+            revert MintFreshnessCheck();
         }
 
         MintLocalVars memory vars;
@@ -571,7 +571,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted redeem failed
-            return fail(Error(error), FailureInfo.REDEEM_ACCRUE_INTEREST_FAILED);
+            revert RedeemAccrueInterestFailed(error);
         }
         // redeemFresh emits redeem-specific logs on errors, so we don't need to
         return redeemFresh(payable(msg.sender), redeemTokens, 0);
@@ -587,7 +587,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted redeem failed
-            return fail(Error(error), FailureInfo.REDEEM_ACCRUE_INTEREST_FAILED);
+            revert RedeemAccrueInterestFailed(error);
         }
         // redeemFresh emits redeem-specific logs on errors, so we don't need to
         return redeemFresh(payable(msg.sender), 0, redeemAmount);
@@ -653,12 +653,12 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if redeem not allowed */
         uint allowed = comptroller.redeemAllowed(address(this), redeemer, vars.redeemTokens);
         if (allowed != 0) {
-            return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.REDEEM_COMPTROLLER_REJECTION, allowed);
+            revert RedeemComptrollerRejection(allowed);
         }
 
         /* Verify market's block number equals current block number */
         if (accrualBlockNumber != getBlockNumber()) {
-            return fail(Error.MARKET_NOT_FRESH, FailureInfo.REDEEM_FRESHNESS_CHECK);
+            revert RedeemFreshnessCheck();
         }
 
         /*
@@ -678,7 +678,7 @@ abstract contract CToken is CTokenInterface, Exponential {
 
         /* Fail gracefully if protocol has insufficient cash */
         if (getCashPrior() < vars.redeemAmount) {
-            return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.REDEEM_TRANSFER_OUT_NOT_POSSIBLE);
+            revert RedeemTransferOutNotPossible();
         }
 
         /////////////////////////
@@ -716,7 +716,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
-            return fail(Error(error), FailureInfo.BORROW_ACCRUE_INTEREST_FAILED);
+            revert BorrowAccrueInterestFailed(error);
         }
         // borrowFresh emits borrow-specific logs on errors, so we don't need to
         return borrowFresh(payable(msg.sender), borrowAmount);
@@ -738,17 +738,17 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if borrow not allowed */
         uint allowed = comptroller.borrowAllowed(address(this), borrower, borrowAmount);
         if (allowed != 0) {
-            return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.BORROW_COMPTROLLER_REJECTION, allowed);
+            revert BorrowComptrollerRejection(allowed);
         }
 
         /* Verify market's block number equals current block number */
         if (accrualBlockNumber != getBlockNumber()) {
-            return fail(Error.MARKET_NOT_FRESH, FailureInfo.BORROW_FRESHNESS_CHECK);
+            revert BorrowFreshnessCheck();
         }
 
         /* Fail gracefully if protocol has insufficient underlying cash */
         if (getCashPrior() < borrowAmount) {
-            return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.BORROW_CASH_NOT_AVAILABLE);
+           revert BorrowCashNotAvailable();
         }
 
         BorrowLocalVars memory vars;
@@ -809,7 +809,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
-            return (fail(Error(error), FailureInfo.REPAY_BORROW_ACCRUE_INTEREST_FAILED), 0);
+            revert RepayBorrowAccrueInterestFailed(error);
         }
         // repayBorrowFresh emits repay-borrow-specific logs on errors, so we don't need to
         return repayBorrowFresh(msg.sender, msg.sender, repayAmount);
@@ -825,7 +825,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
-            return (fail(Error(error), FailureInfo.REPAY_BEHALF_ACCRUE_INTEREST_FAILED), 0);
+            revert RepayBehalfAccrueInterestFailed(error);
         }
         // repayBorrowFresh emits repay-borrow-specific logs on errors, so we don't need to
         return repayBorrowFresh(msg.sender, borrower, repayAmount);
@@ -853,12 +853,12 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if repayBorrow not allowed */
         uint allowed = comptroller.repayBorrowAllowed(address(this), payer, borrower, repayAmount);
         if (allowed != 0) {
-            return (failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.REPAY_BORROW_COMPTROLLER_REJECTION, allowed), 0);
+            revert RepayBorrowComptrollerRejection(allowed);
         }
 
         /* Verify market's block number equals current block number */
         if (accrualBlockNumber != getBlockNumber()) {
-            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.REPAY_BORROW_FRESHNESS_CHECK), 0);
+            revert RepayBorrowFreshnessCheck();
         }
 
         RepayBorrowLocalVars memory vars;
@@ -930,13 +930,13 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted liquidation failed
-            return (fail(Error(error), FailureInfo.LIQUIDATE_ACCRUE_BORROW_INTEREST_FAILED), 0);
+            revert LiquidateAccrueBorrowInterestFailed(error);
         }
 
         error = cTokenCollateral.accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted liquidation failed
-            return (fail(Error(error), FailureInfo.LIQUIDATE_ACCRUE_COLLATERAL_INTEREST_FAILED), 0);
+            revert LiquidateAccrueCollateralInterestFailed(error);
         }
 
         // liquidateBorrowFresh emits borrow-specific logs on errors, so we don't need to
@@ -956,39 +956,38 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if liquidate not allowed */
         uint allowed = comptroller.liquidateBorrowAllowed(address(this), address(cTokenCollateral), liquidator, borrower, repayAmount);
         if (allowed != 0) {
-            return (failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.LIQUIDATE_COMPTROLLER_REJECTION, allowed), 0);
+            revert LiquidateComptrollerRejection(allowed);
         }
 
         /* Verify market's block number equals current block number */
         if (accrualBlockNumber != getBlockNumber()) {
-            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.LIQUIDATE_FRESHNESS_CHECK), 0);
+            revert LiquidateFreshnessCheck();
         }
 
         /* Verify cTokenCollateral market's block number equals current block number */
         if (cTokenCollateral.accrualBlockNumber() != getBlockNumber()) {
-            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.LIQUIDATE_COLLATERAL_FRESHNESS_CHECK), 0);
+            revert LiquidateCollateralFreshnessCheck();
         }
 
         /* Fail if borrower = liquidator */
         if (borrower == liquidator) {
-            return (fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.LIQUIDATE_LIQUIDATOR_IS_BORROWER), 0);
+            revert LiquidateLiquidatorIsBorrower();
         }
 
         /* Fail if repayAmount = 0 */
         if (repayAmount == 0) {
-            return (fail(Error.INVALID_CLOSE_AMOUNT_REQUESTED, FailureInfo.LIQUIDATE_CLOSE_AMOUNT_IS_ZERO), 0);
+            revert LiquidateCloseAmountIsZero();
         }
 
         /* Fail if repayAmount = -1 */
         if (repayAmount == type(uint).max) {
-            return (fail(Error.INVALID_CLOSE_AMOUNT_REQUESTED, FailureInfo.LIQUIDATE_CLOSE_AMOUNT_IS_UINT_MAX), 0);
+            revert LiquidateCloseAmountIsUintMax();
         }
-
 
         /* Fail if repayBorrow fails */
         (uint repayBorrowError, uint actualRepayAmount) = repayBorrowFresh(liquidator, borrower, repayAmount);
         if (repayBorrowError != uint(Error.NO_ERROR)) {
-            return (fail(Error(repayBorrowError), FailureInfo.LIQUIDATE_REPAY_BORROW_FRESH_FAILED), 0);
+            revert LiquidateRepayBorrowFreshFailed(repayBorrowError);
         }
 
         /////////////////////////
@@ -1062,12 +1061,12 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if seize not allowed */
         uint allowed = comptroller.seizeAllowed(address(this), seizerToken, liquidator, borrower, seizeTokens);
         if (allowed != 0) {
-            return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.LIQUIDATE_SEIZE_COMPTROLLER_REJECTION, allowed);
+            revert LiquidateSeizeComptrollerRejection(allowed);
         }
 
         /* Fail if borrower = liquidator */
         if (borrower == liquidator) {
-            return fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.LIQUIDATE_SEIZE_LIQUIDATOR_IS_BORROWER);
+            revert LiquidateSeizeLiquidatorIsBorrower();
         }
 
         SeizeInternalLocalVars memory vars;
@@ -1155,7 +1154,7 @@ abstract contract CToken is CTokenInterface, Exponential {
     function _acceptAdmin() override external returns (uint) {
         // Check caller is pendingAdmin and pendingAdmin ≠ address(0)
         if (msg.sender != pendingAdmin || msg.sender == address(0)) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
+            revert AcceptAdminPendingAdminCheck();
         }
 
         // Save current values for inclusion in log
@@ -1182,7 +1181,7 @@ abstract contract CToken is CTokenInterface, Exponential {
     function _setComptroller(ComptrollerInterface newComptroller) override public returns (uint) {
         // Check caller is admin
         if (msg.sender != admin) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.SET_COMPTROLLER_OWNER_CHECK);
+            revert SetComptrollerOwnerCheck();
         }
 
         ComptrollerInterface oldComptroller = comptroller;
@@ -1207,7 +1206,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted reserve factor change failed.
-            return fail(Error(error), FailureInfo.SET_RESERVE_FACTOR_ACCRUE_INTEREST_FAILED);
+            revert SetReserveFactorAccrueInterestFailed(error);
         }
         // _setReserveFactorFresh emits reserve-factor-specific logs on errors, so we don't need to.
         return _setReserveFactorFresh(newReserveFactorMantissa);
@@ -1221,17 +1220,17 @@ abstract contract CToken is CTokenInterface, Exponential {
     function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
         // Check caller is admin
         if (msg.sender != admin) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.SET_RESERVE_FACTOR_ADMIN_CHECK);
+            revert SetReserveFactorAdminCheck();
         }
 
         // Verify market's block number equals current block number
         if (accrualBlockNumber != getBlockNumber()) {
-            return fail(Error.MARKET_NOT_FRESH, FailureInfo.SET_RESERVE_FACTOR_FRESH_CHECK);
+            revert SetReserveFactorFreshCheck();
         }
 
         // Check newReserveFactor ≤ maxReserveFactor
         if (newReserveFactorMantissa > reserveFactorMaxMantissa) {
-            return fail(Error.BAD_INPUT, FailureInfo.SET_RESERVE_FACTOR_BOUNDS_CHECK);
+            revert SetReserveFactorBoundsCheck();
         }
 
         uint oldReserveFactorMantissa = reserveFactorMantissa;
@@ -1251,7 +1250,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted reduce reserves failed.
-            return fail(Error(error), FailureInfo.ADD_RESERVES_ACCRUE_INTEREST_FAILED);
+            revert AddReservesAccrueInterestFailed(error);
         }
 
         // _addReservesFresh emits reserve-addition-specific logs on errors, so we don't need to.
@@ -1272,7 +1271,7 @@ abstract contract CToken is CTokenInterface, Exponential {
 
         // We fail gracefully unless market's block number equals current block number
         if (accrualBlockNumber != getBlockNumber()) {
-            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.ADD_RESERVES_FRESH_CHECK), actualAddAmount);
+            revert AddReservesFactorFreshCheck(actualAddAmount);
         }
 
         /////////////////////////
@@ -1314,7 +1313,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted reduce reserves failed.
-            return fail(Error(error), FailureInfo.REDUCE_RESERVES_ACCRUE_INTEREST_FAILED);
+            revert ReduceReservesAccrueInterestFailed(error);
         }
         // _reduceReservesFresh emits reserve-reduction-specific logs on errors, so we don't need to.
         return _reduceReservesFresh(reduceAmount);
@@ -1332,22 +1331,22 @@ abstract contract CToken is CTokenInterface, Exponential {
 
         // Check caller is admin
         if (msg.sender != admin) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.REDUCE_RESERVES_ADMIN_CHECK);
+            revert ReduceReservesAdminCheck();
         }
 
         // We fail gracefully unless market's block number equals current block number
         if (accrualBlockNumber != getBlockNumber()) {
-            return fail(Error.MARKET_NOT_FRESH, FailureInfo.REDUCE_RESERVES_FRESH_CHECK);
+            revert ReduceReservesFreshCheck();
         }
 
         // Fail gracefully if protocol has insufficient underlying cash
         if (getCashPrior() < reduceAmount) {
-            return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.REDUCE_RESERVES_CASH_NOT_AVAILABLE);
+            revert ReduceReservesCashNotAvailable();
         }
 
         // Check reduceAmount ≤ reserves[n] (totalReserves)
         if (reduceAmount > totalReserves) {
-            return fail(Error.BAD_INPUT, FailureInfo.REDUCE_RESERVES_VALIDATION);
+            revert ReduceReservesCashValidation();
         }
 
         /////////////////////////
@@ -1379,7 +1378,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         uint error = accrueInterest();
         if (error != uint(Error.NO_ERROR)) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted change of interest rate model failed
-            return fail(Error(error), FailureInfo.SET_INTEREST_RATE_MODEL_ACCRUE_INTEREST_FAILED);
+            revert SetInterestRateModelAccrueInterestFailed(error);
         }
         // _setInterestRateModelFresh emits interest-rate-model-update-specific logs on errors, so we don't need to.
         return _setInterestRateModelFresh(newInterestRateModel);
@@ -1398,12 +1397,12 @@ abstract contract CToken is CTokenInterface, Exponential {
 
         // Check caller is admin
         if (msg.sender != admin) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.SET_INTEREST_RATE_MODEL_OWNER_CHECK);
+            revert SetInterestRateModelOwnerCheck();
         }
 
         // We fail gracefully unless market's block number equals current block number
         if (accrualBlockNumber != getBlockNumber()) {
-            return fail(Error.MARKET_NOT_FRESH, FailureInfo.SET_INTEREST_RATE_MODEL_FRESH_CHECK);
+            revert SetInterestRateModelFreshCheck();
         }
 
         // Track the market's current interest rate model

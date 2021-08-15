@@ -186,6 +186,61 @@ contract TokenErrorReporter {
     error TransferNotEnough();
     error TransferTooMuch();
 
+    error MintComptrollerRejection(uint256 errorCode);
+    error MintFreshnessCheck();
+    error MintAccrueInterestFailed(uint256 errorCode);
+
+    error RedeemComptrollerRejection(uint256 errorCode);
+    error RedeemFreshnessCheck();
+    error RedeemAccrueInterestFailed(uint256 errorCode);
+    error RedeemTransferOutNotPossible();
+
+    error BorrowComptrollerRejection(uint256 errorCode);
+    error BorrowFreshnessCheck();
+    error BorrowAccrueInterestFailed(uint256 errorCode);
+    error BorrowCashNotAvailable();
+
+    error RepayBorrowComptrollerRejection(uint256 errorCode);
+    error RepayBorrowFreshnessCheck();
+    error RepayBorrowAccrueInterestFailed(uint256 errorCode);
+
+    error RepayBehalfAccrueInterestFailed(uint256 errorCode);
+
+    error LiquidateComptrollerRejection(uint256 errorCode);
+    error LiquidateFreshnessCheck();
+    error LiquidateCollateralFreshnessCheck();
+    error LiquidateAccrueBorrowInterestFailed(uint256 errorCode);
+    error LiquidateAccrueCollateralInterestFailed(uint256 errorCode);
+    error LiquidateLiquidatorIsBorrower();
+    error LiquidateCloseAmountIsZero();
+    error LiquidateCloseAmountIsUintMax();
+    error LiquidateRepayBorrowFreshFailed(uint256 errorCode);
+
+    error LiquidateSeizeComptrollerRejection(uint256 errorCode);
+    error LiquidateSeizeLiquidatorIsBorrower();
+
+    error AcceptAdminPendingAdminCheck();
+
+    error SetComptrollerOwnerCheck();
+
+    error SetReserveFactorAccrueInterestFailed(uint256 errorCode);
+    error SetReserveFactorAdminCheck();
+    error SetReserveFactorFreshCheck();
+    error SetReserveFactorBoundsCheck();
+
+    error AddReservesAccrueInterestFailed(uint256 errorCode);
+    error AddReservesFactorFreshCheck(uint256 actualAddAmount);
+
+    error ReduceReservesAccrueInterestFailed(uint256 errorCode);
+    error ReduceReservesAdminCheck();
+    error ReduceReservesFreshCheck();
+    error ReduceReservesCashNotAvailable();
+    error ReduceReservesCashValidation();
+
+    error SetInterestRateModelAccrueInterestFailed(uint256 errorCode);
+    error SetInterestRateModelOwnerCheck();
+    error SetInterestRateModelFreshCheck();
+
     /**
       * @dev `error` corresponds to enum Error; `info` corresponds to enum FailureInfo, and `detail` is an arbitrary
       * contract-specific code that enables us to report opaque error codes from upgradeable contracts.
