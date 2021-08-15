@@ -68,12 +68,12 @@ abstract contract CToken is CTokenInterface, Exponential {
         /* Fail if transfer not allowed */
         uint allowed = comptroller.transferAllowed(address(this), src, dst, tokens);
         if (allowed != 0) {
-            return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.TRANSFER_COMPTROLLER_REJECTION, allowed);
+            revert TransferComptrollerRejection(allowed);
         }
 
         /* Do not allow self-transfers */
         if (src == dst) {
-            return fail(Error.BAD_INPUT, FailureInfo.TRANSFER_NOT_ALLOWED);
+            revert TransferNotAllowed();
         }
 
         /* Get the allowance, infinite for the account owner */
@@ -92,17 +92,17 @@ abstract contract CToken is CTokenInterface, Exponential {
 
         (mathErr, allowanceNew) = subUInt(startingAllowance, tokens);
         if (mathErr != MathError.NO_ERROR) {
-            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_NOT_ALLOWED);
+            revert TransferNotAllowed();
         }
 
         (mathErr, srcTokensNew) = subUInt(accountTokens[src], tokens);
         if (mathErr != MathError.NO_ERROR) {
-            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_NOT_ENOUGH);
+            revert TransferNotEnough();
         }
 
         (mathErr, dstTokensNew) = addUInt(accountTokens[dst], tokens);
         if (mathErr != MathError.NO_ERROR) {
-            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_TOO_MUCH);
+            revert TransferNotEnough();
         }
 
         /////////////////////////
@@ -123,7 +123,7 @@ abstract contract CToken is CTokenInterface, Exponential {
         // unused function
         // comptroller.transferVerify(address(this), src, dst, tokens);
 
-        return uint(Error.NO_ERROR);
+        return 0;
     }
 
     /**

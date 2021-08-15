@@ -181,6 +181,11 @@ contract TokenErrorReporter {
         ADD_RESERVES_TRANSFER_IN_NOT_POSSIBLE
     }
 
+    error TransferComptrollerRejection(uint256 errorCode);
+    error TransferNotAllowed();
+    error TransferNotEnough();
+    error TransferTooMuch();
+
     /**
       * @dev `error` corresponds to enum Error; `info` corresponds to enum FailureInfo, and `detail` is an arbitrary
       * contract-specific code that enables us to report opaque error codes from upgradeable contracts.
