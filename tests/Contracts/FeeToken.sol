@@ -8,6 +8,8 @@ import "./FaucetToken.sol";
   * @notice A simple test token that charges fees on transfer. Used to mock USDT.
   */
 contract FeeToken is FaucetToken {
+    using SafeMath for uint256;
+
     uint public basisPointFee;
     address public owner;
 
@@ -24,22 +26,22 @@ contract FeeToken is FaucetToken {
     }
 
     function transfer(address dst, uint amount) override public returns (bool) {
-        uint fee = amount * basisPointFee / 10000;
-        uint net = amount - fee;
-        balanceOf[owner] = balanceOf[owner] + fee;
-        balanceOf[msg.sender] = balanceOf[msg.sender] - amount;
-        balanceOf[dst] = balanceOf[dst] + net;
+        uint fee = amount.mul(basisPointFee).div(10000);
+        uint net = amount.sub(fee);
+        balanceOf[owner] = balanceOf[owner].add(fee);
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(amount);
+        balanceOf[dst] = balanceOf[dst].add(net);
         emit Transfer(msg.sender, dst, amount);
         return true;
     }
 
     function transferFrom(address src, address dst, uint amount) override public returns (bool) {
-        uint fee = amount * basisPointFee / 10000;
-        uint net = amount - fee;
-        balanceOf[owner] = balanceOf[owner] + fee;
-        balanceOf[src] = balanceOf[src] - amount;
-        balanceOf[dst] = balanceOf[dst] + net;
-        allowance[src][msg.sender] = allowance[src][msg.sender] - amount;
+        uint fee = amount.mul(basisPointFee).div(10000);
+        uint net = amount.sub(fee);
+        balanceOf[owner] = balanceOf[owner].add(fee);
+        balanceOf[src] = balanceOf[src].sub(amount);
+        balanceOf[dst] = balanceOf[dst].add(net);
+        allowance[src][msg.sender] = allowance[src][msg.sender].sub(amount);
         emit Transfer(src, dst, amount);
         return true;
     }
