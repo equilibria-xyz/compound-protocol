@@ -42,8 +42,7 @@ contract CEther is CToken {
      * @dev Reverts upon any failure
      */
     function mint() external payable {
-        (uint err,) = mintInternal(msg.value);
-        requireNoError(err, "mint failed");
+        mintInternal(msg.value);
     }
 
     /**
@@ -53,7 +52,8 @@ contract CEther is CToken {
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
     function redeem(uint redeemTokens) external returns (uint) {
-        return redeemInternal(redeemTokens);
+        redeemInternal(redeemTokens);
+        return uint(Error.NO_ERROR);
     }
 
     /**
@@ -63,7 +63,8 @@ contract CEther is CToken {
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
     function redeemUnderlying(uint redeemAmount) external returns (uint) {
-        return redeemUnderlyingInternal(redeemAmount);
+        redeemUnderlyingInternal(redeemAmount);
+        return uint(Error.NO_ERROR);
     }
 
     /**
@@ -72,7 +73,8 @@ contract CEther is CToken {
       * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
       */
     function borrow(uint borrowAmount) external returns (uint) {
-        return borrowInternal(borrowAmount);
+        borrowInternal(borrowAmount);
+        return uint(Error.NO_ERROR);
     }
 
     /**
@@ -80,8 +82,7 @@ contract CEther is CToken {
      * @dev Reverts upon any failure
      */
     function repayBorrow() external payable {
-        (uint err,) = repayBorrowInternal(msg.value);
-        requireNoError(err, "repayBorrow failed");
+        repayBorrowInternal(msg.value);
     }
 
     /**
@@ -90,8 +91,7 @@ contract CEther is CToken {
      * @param borrower the account with the debt being payed off
      */
     function repayBorrowBehalf(address borrower) external payable {
-        (uint err,) = repayBorrowBehalfInternal(borrower, msg.value);
-        requireNoError(err, "repayBorrowBehalf failed");
+        repayBorrowBehalfInternal(borrower, msg.value);
     }
 
     /**
@@ -102,8 +102,7 @@ contract CEther is CToken {
      * @param cTokenCollateral The market in which to seize collateral from the borrower
      */
     function liquidateBorrow(address borrower, CToken cTokenCollateral) external payable {
-        (uint err,) = liquidateBorrowInternal(borrower, msg.value, cTokenCollateral);
-        requireNoError(err, "liquidateBorrow failed");
+        liquidateBorrowInternal(borrower, msg.value, cTokenCollateral);
     }
 
     /**
@@ -118,8 +117,7 @@ contract CEther is CToken {
      * @notice Send Ether to CEther to mint
      */
     receive() external payable {
-        (uint err,) = mintInternal(msg.value);
-        requireNoError(err, "mint failed");
+        mintInternal(msg.value);
     }
 
     /*** Safe Token ***/
@@ -130,9 +128,7 @@ contract CEther is CToken {
      * @return The quantity of Ether owned by this contract
      */
     function getCashPrior() override internal view returns (uint) {
-        (MathError err, uint startingBalance) = subUInt(address(this).balance, msg.value);
-        require(err == MathError.NO_ERROR);
-        return startingBalance;
+        return sub_(address(this).balance, msg.value);
     }
 
     /**
@@ -151,26 +147,5 @@ contract CEther is CToken {
     function doTransferOut(address payable to, uint amount) virtual override internal {
         /* Send the Ether, with minimal gas and revert on failure */
         to.transfer(amount);
-    }
-
-    function requireNoError(uint errCode, string memory message) internal pure {
-        if (errCode == uint(Error.NO_ERROR)) {
-            return;
-        }
-
-        bytes memory fullMessage = new bytes(bytes(message).length + 5);
-        uint i;
-
-        for (i = 0; i < bytes(message).length; i++) {
-            fullMessage[i] = bytes(message)[i];
-        }
-
-        fullMessage[i+0] = bytes1(uint8(32));
-        fullMessage[i+1] = bytes1(uint8(40));
-        fullMessage[i+2] = bytes1(uint8(48 + ( errCode / 10 )));
-        fullMessage[i+3] = bytes1(uint8(48 + ( errCode % 10 )));
-        fullMessage[i+4] = bytes1(uint8(41));
-
-        require(errCode == uint(Error.NO_ERROR), string(fullMessage));
     }
 }
