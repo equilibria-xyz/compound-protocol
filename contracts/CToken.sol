@@ -3,9 +3,9 @@ pragma solidity ^0.8.6;
 import "./ComptrollerInterface.sol";
 import "./CTokenInterfaces.sol";
 import "./ErrorReporter.sol";
-import "./Exponential.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
+import "./ExponentialNoError.sol";
 
 /**
  * @title Compound's CToken Contract
