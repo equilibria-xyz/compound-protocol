@@ -438,8 +438,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalSupplyNew = totalSupply + mintTokens
          *  accountTokensNew = accountTokens[minter] + mintTokens
          */
-        uint totalSupplyNew = add_(totalSupply, mintTokens, "MINT_NEW_TOTAL_SUPPLY_CALCULATION_FAILED");
-        uint accountTokensNew = add_(accountTokens[minter], mintTokens, "MINT_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED");
+        uint totalSupplyNew = totalSupply + mintTokens;
+        uint accountTokensNew = accountTokens[minter] + mintTokens;
 
         /* We write previously calculated values into storage */
         totalSupply = totalSupplyNew;
@@ -536,8 +536,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalSupplyNew = totalSupply - redeemTokens
          *  accountTokensNew = accountTokens[redeemer] - redeemTokens
          */
-        totalSupplyNew = sub_(totalSupply, redeemTokens, "REDEEM_NEW_TOTAL_SUPPLY_CALCULATION_FAILED");
-        accountTokensNew = sub_(accountTokens[redeemer], redeemTokens, "REDEEM_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED");
+        totalSupplyNew = totalSupply - redeemTokens;
+        accountTokensNew = accountTokens[redeemer] - redeemTokens;
 
         /* Fail gracefully if protocol has insufficient cash */
         if (getCashPrior() < redeemAmount) {
@@ -897,7 +897,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
     function _setPendingAdmin(address payable newPendingAdmin) override external returns (uint) {
         // Check caller = admin
         if (msg.sender != admin) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
+            revert SetPendingAdminOwnerCheck();
         }
 
         // Save current value, if any, for inclusion in log

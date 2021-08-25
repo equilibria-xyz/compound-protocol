@@ -3,27 +3,36 @@
 /*
  * This module loads Error and FailureInfo enum from ErrorReporter.sol.
  */
-
+const fs = require('fs')
 const path = require('path');
-const solparse = require('solparse');
+const solparse = require('@solidity-parser/parser');
 
 const errorReporterPath = path.join(__dirname, '..', 'contracts', 'ErrorReporter.sol');
-const contents = solparse.parseFile(errorReporterPath);
+const errorReporterContest = fs.readFileSync(errorReporterPath)
+const contents = solparse.parse(errorReporterContest.toString());
 const [
   ComptrollerErrorReporter,
   TokenErrorReporter
-] = contents.body.filter(k => k.type === 'ContractStatement');
+] = contents.children.filter(k => k.type === 'ContractDefinition');
 
 function invert(object) {
   return Object.entries(object).reduce((obj, [key, value]) => ({ ...obj, [value]: key }), {});
 }
 
 function parse(reporter) {
-  const ErrorInv = reporter.body.find(k => k.name == 'Error').members;
-  const FailureInfoInv = reporter.body.find(k => k.name == 'FailureInfo').members;
+  const ErrorInv = reporter.subNodes.find(k => k.name == 'Error').members;
+  const FailureInfoInv = reporter.subNodes.find(k => k.name == 'FailureInfo').members;
+  const CustomErrors = reporter.subNodes.filter(k => k.type === 'CustomErrorDefinition').reduce((obj, i) => {
+    obj[i.name] = {
+      type: 'function',
+      name: i.name,
+      inputs: i.parameters.map(p => ({ name: p.name, type: p.typeName.name }))
+    };
+    return obj;
+  }, {})
   const Error = invert(ErrorInv);
   const FailureInfo = invert(FailureInfoInv);
-  return {Error, FailureInfo, ErrorInv, FailureInfoInv};
+  return {Error, FailureInfo, ErrorInv, FailureInfoInv, CustomErrors};
 }
 
 // const carefulMathPath = path.join(__dirname, '..', 'contracts', 'CarefulMath.sol');
@@ -36,9 +45,8 @@ const MathErrorInv = {
 } // CarefulMath.body.find(k => k.name == 'MathError').members;
 const MathError = invert(MathErrorInv);
 
-const whitePaperModelPath = path.join(__dirname, '..', 'contracts', 'WhitePaperInterestRateModel.sol');
-const whitePaperModel = solparse.parseFile(whitePaperModelPath).body.find(k => k.type === 'ContractStatement');
-
+// const whitePaperModelPath = path.join(__dirname, '..', 'contracts', 'WhitePaperInterestRateModel.sol');
+// const whitePaperModel = solparse.parseFile(whitePaperModelPath).body.find(k => k.type === 'ContractStatement');
 module.exports = {
   ComptrollerErr: parse(ComptrollerErrorReporter),
   TokenErr: parse(TokenErrorReporter),

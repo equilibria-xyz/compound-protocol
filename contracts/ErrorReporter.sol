@@ -222,6 +222,7 @@ contract TokenErrorReporter {
     error AcceptAdminPendingAdminCheck();
 
     error SetComptrollerOwnerCheck();
+    error SetPendingAdminOwnerCheck();
 
     error SetReserveFactorAccrueInterestFailed(uint256 errorCode);
     error SetReserveFactorAdminCheck();
