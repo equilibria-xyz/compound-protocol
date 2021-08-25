@@ -20,8 +20,14 @@ function invert(object) {
 }
 
 function parse(reporter) {
-  const ErrorInv = reporter.subNodes.find(k => k.name == 'Error').members;
-  const FailureInfoInv = reporter.subNodes.find(k => k.name == 'FailureInfo').members;
+  const Error = reporter.subNodes.find(k => k.name == 'Error').members.reduce((obj, i, idx) => {
+    obj[i.name] = `${idx}`
+    return obj
+  }, {});
+  const FailureInfo = reporter.subNodes.find(k => k.name == 'FailureInfo').members.reduce((obj, i, idx) => {
+    obj[i.name] = `${idx}`
+    return obj
+  }, {});
   const CustomErrors = reporter.subNodes.filter(k => k.type === 'CustomErrorDefinition').reduce((obj, i) => {
     obj[i.name] = {
       type: 'function',
@@ -30,8 +36,8 @@ function parse(reporter) {
     };
     return obj;
   }, {})
-  const Error = invert(ErrorInv);
-  const FailureInfo = invert(FailureInfoInv);
+  const ErrorInv = invert(Error);
+  const FailureInfoInv = invert(FailureInfo);
   return {Error, FailureInfo, ErrorInv, FailureInfoInv, CustomErrors};
 }
 
