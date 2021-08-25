@@ -356,7 +356,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         Exp memory simpleInterestFactor = mul_(Exp({mantissa: borrowRateMantissa}), blockDelta);
         uint interestAccumulated = mul_ScalarTruncate(simpleInterestFactor, borrowsPrior);
-        uint totalBorrowsNew = add_(interestAccumulated, borrowsPrior, "ACCRUE_INTEREST_NEW_TOTAL_BORROWS_CALCULATION_FAILED");
+        uint totalBorrowsNew = add_(interestAccumulated, borrowsPrior);
         uint totalReservesNew = mul_ScalarTruncateAddUInt(Exp({mantissa: reserveFactorMantissa}), interestAccumulated, reservesPrior);
         uint borrowIndexNew = mul_ScalarTruncateAddUInt(simpleInterestFactor, borrowIndexPrior, borrowIndexPrior);
 
@@ -435,15 +435,11 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
-         *  totalSupplyNew = totalSupply + mintTokens
-         *  accountTokensNew = accountTokens[minter] + mintTokens
+         *  totalSupply = totalSupply + mintTokens
+         *  accountTokens[minter] = accountTokens[minter] + mintTokens
          */
-        uint totalSupplyNew = add_(totalSupply, mintTokens, "MINT_NEW_TOTAL_SUPPLY_CALCULATION_FAILED");
-        uint accountTokensNew = add_(accountTokens[minter], mintTokens, "MINT_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED");
-
-        /* We write previously calculated values into storage */
-        totalSupply = totalSupplyNew;
-        accountTokens[minter] = accountTokensNew;
+        totalSupply = add_(totalSupply, mintTokens);
+        accountTokens[minter] = add_(accountTokens[minter], mintTokens);
 
         /* We emit a Mint event, and a Transfer event */
         emit Mint(minter, actualMintAmount, mintTokens);
@@ -494,8 +490,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         uint redeemTokens;
         uint redeemAmount;
-        uint totalSupplyNew;
-        uint accountTokensNew;
 
         /* exchangeRate = invoke Exchange Rate Stored() */
         uint exchangeRateMantissa = exchangeRateStoredInternal();
@@ -536,8 +530,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalSupplyNew = totalSupply - redeemTokens
          *  accountTokensNew = accountTokens[redeemer] - redeemTokens
          */
-        totalSupplyNew = sub_(totalSupply, redeemTokens, "REDEEM_NEW_TOTAL_SUPPLY_CALCULATION_FAILED");
-        accountTokensNew = sub_(accountTokens[redeemer], redeemTokens, "REDEEM_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED");
+        uint totalSupplyNew = sub_(totalSupply, redeemTokens);
+        uint accountTokensNew = sub_(accountTokens[redeemer], redeemTokens);
 
         /* Fail gracefully if protocol has insufficient cash */
         if (getCashPrior() < redeemAmount) {
@@ -609,8 +603,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalBorrowsNew = totalBorrows + borrowAmount
          */
         uint accountBorrow = borrowBalanceStoredInternal(borrower);
-        uint accountBorrowNew = add_(accountBorrow, borrowAmount, "BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED");
-        uint totalBorrowsNew = add_(totalBorrows, borrowAmount, "BORROW_NEW_TOTAL_BALANCE_CALCULATION_FAILED");
+        uint accountBorrowNew = add_(accountBorrow, borrowAmount);
+        uint totalBorrowsNew = add_(totalBorrows, borrowAmount);
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -710,8 +704,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  accountBorrowNew = accountBorrow - actualRepayAmount
          *  totalBorrowsNew = totalBorrows - actualRepayAmount
          */
-        uint accountBorrowNew = sub_(accountBorrow, actualRepayAmount, "REPAY_BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED");
-        uint totalBorrowsNew = sub_(totalBorrows, actualRepayAmount, "REPAY_BORROW_NEW_TOTAL_BALANCE_CALCULATION_FAILED");
+        uint accountBorrowNew = sub_(accountBorrow, actualRepayAmount);
+        uint totalBorrowsNew = sub_(totalBorrows, actualRepayAmount);
 
         /* We write the previously calculated values into storage */
         accountBorrows[borrower].principal = accountBorrowNew;
@@ -857,7 +851,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  borrowerTokensNew = accountTokens[borrower] - seizeTokens
          *  liquidatorTokensNew = accountTokens[liquidator] + seizeTokens
          */
-        uint borrowerTokensNew = sub_(accountTokens[borrower], seizeTokens, "LIQUIDATE_SEIZE_BALANCE_DECREMENT_FAILED");
+        uint borrowerTokensNew = sub_(accountTokens[borrower], seizeTokens);
         uint protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
         uint liquidatorSeizeTokens = sub_(seizeTokens, protocolSeizeTokens);
 
@@ -867,7 +861,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         uint totalReservesNew = add_(totalReserves, protocolSeizeAmount);
         uint totalSupplyNew = sub_(totalSupply, protocolSeizeTokens);
 
-        uint liquidatorTokensNew = add_(accountTokens[liquidator], liquidatorSeizeTokens, "LIQUIDATE_SEIZE_BALANCE_INCREMENT_FAILED");
+        uint liquidatorTokensNew = add_(accountTokens[liquidator], liquidatorSeizeTokens);
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
