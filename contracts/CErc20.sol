@@ -47,7 +47,7 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function mint(uint mintAmount) override external returns (uint) {
         mintInternal(mintAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -58,7 +58,7 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function redeem(uint redeemTokens) override external returns (uint) {
         redeemInternal(redeemTokens);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -69,7 +69,7 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function redeemUnderlying(uint redeemAmount) override external returns (uint) {
         redeemUnderlyingInternal(redeemAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -79,7 +79,7 @@ contract CErc20 is CToken, CErc20Interface {
       */
     function borrow(uint borrowAmount) override external returns (uint) {
         borrowInternal(borrowAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -89,7 +89,7 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function repayBorrow(uint repayAmount) override external returns (uint) {
         repayBorrowInternal(repayAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -100,7 +100,7 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function repayBorrowBehalf(address borrower, uint repayAmount) override external returns (uint) {
         repayBorrowBehalfInternal(borrower, repayAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -113,7 +113,7 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) override external returns (uint) {
         liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**

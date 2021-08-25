@@ -53,7 +53,7 @@ contract CEther is CToken {
      */
     function redeem(uint redeemTokens) external returns (uint) {
         redeemInternal(redeemTokens);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -64,7 +64,7 @@ contract CEther is CToken {
      */
     function redeemUnderlying(uint redeemAmount) external returns (uint) {
         redeemUnderlyingInternal(redeemAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -74,7 +74,7 @@ contract CEther is CToken {
       */
     function borrow(uint borrowAmount) external returns (uint) {
         borrowInternal(borrowAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
