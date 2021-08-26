@@ -96,12 +96,12 @@ contract CErc20Harness is CErc20Immutable {
 
     function harnessMintFresh(address account, uint mintAmount) public returns (uint) {
         super.mintFresh(account, mintAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessRedeemFresh(address payable account, uint cTokenAmount, uint underlyingAmount) public returns (uint) {
         super.redeemFresh(account, cTokenAmount, underlyingAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessAccountBorrows(address account) public view returns (uint principal, uint interestIndex) {
@@ -119,17 +119,17 @@ contract CErc20Harness is CErc20Immutable {
 
     function harnessBorrowFresh(address payable account, uint borrowAmount) public returns (uint) {
         borrowFresh(account, borrowAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessRepayBorrowFresh(address payer, address account, uint repayAmount) public returns (uint) {
         repayBorrowFresh(payer, account, repayAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessLiquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CToken cTokenCollateral) public returns (uint) {
         liquidateBorrowFresh(liquidator, borrower, repayAmount, cTokenCollateral);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessReduceReservesFresh(uint amount) public returns (uint) {
@@ -321,12 +321,12 @@ contract CErc20DelegateHarness is CErc20Delegate {
 
     function harnessMintFresh(address account, uint mintAmount) public returns (uint) {
         super.mintFresh(account, mintAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessRedeemFresh(address payable account, uint cTokenAmount, uint underlyingAmount) public returns (uint) {
         super.redeemFresh(account, cTokenAmount, underlyingAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessAccountBorrows(address account) public view returns (uint principal, uint interestIndex) {
@@ -344,17 +344,17 @@ contract CErc20DelegateHarness is CErc20Delegate {
 
     function harnessBorrowFresh(address payable account, uint borrowAmount) public returns (uint) {
         borrowFresh(account, borrowAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessRepayBorrowFresh(address payer, address account, uint repayAmount) public returns (uint) {
         repayBorrowFresh(payer, account, repayAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessLiquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CToken cTokenCollateral) public returns (uint) {
         liquidateBorrowFresh(liquidator, borrower, repayAmount, cTokenCollateral);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessReduceReservesFresh(uint amount) public returns (uint) {

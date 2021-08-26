@@ -85,12 +85,12 @@ contract CEtherHarness is CEther {
 
     function harnessMintFresh(address account, uint mintAmount) public returns (uint) {
         super.mintFresh(account, mintAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessRedeemFresh(address payable account, uint cTokenAmount, uint underlyingAmount) public returns (uint) {
         super.redeemFresh(account, cTokenAmount, underlyingAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessAccountBorrows(address account) public view returns (uint principal, uint interestIndex) {
@@ -108,17 +108,17 @@ contract CEtherHarness is CEther {
 
     function harnessBorrowFresh(address payable account, uint borrowAmount) public returns (uint) {
         borrowFresh(account, borrowAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessRepayBorrowFresh(address payer, address account, uint repayBorrowAmount) public payable returns (uint) {
         repayBorrowFresh(payer, account, repayBorrowAmount);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessLiquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CToken cTokenCollateral) public returns (uint) {
         liquidateBorrowFresh(liquidator, borrower, repayAmount, cTokenCollateral);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     function harnessReduceReservesFresh(uint amount) public returns (uint) {

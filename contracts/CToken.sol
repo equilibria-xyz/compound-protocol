@@ -37,7 +37,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         // Set the comptroller
         uint err = _setComptroller(comptroller_);
-        require(err == uint(Error.NO_ERROR), "setting comptroller failed");
+        require(err == NO_ERROR, "setting comptroller failed");
 
         // Initialize block number and borrow index (block number mocks depend on comptroller being set)
         accrualBlockNumber = getBlockNumber();
@@ -45,7 +45,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         // Set the interest rate model (depends on block number / borrow index)
         err = _setInterestRateModelFresh(interestRateModel_);
-        require(err == uint(Error.NO_ERROR), "setting interest rate model failed");
+        require(err == NO_ERROR, "setting interest rate model failed");
 
         name = name_;
         symbol = symbol_;
@@ -107,7 +107,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         // unused function
         // comptroller.transferVerify(address(this), src, dst, tokens);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -117,7 +117,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      * @return Whether or not the transfer succeeded
      */
     function transfer(address dst, uint256 amount) override external nonReentrant returns (bool) {
-        return transferTokens(msg.sender, msg.sender, dst, amount) == uint(Error.NO_ERROR);
+        return transferTokens(msg.sender, msg.sender, dst, amount) == NO_ERROR;
     }
 
     /**
@@ -128,7 +128,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      * @return Whether or not the transfer succeeded
      */
     function transferFrom(address src, address dst, uint256 amount) override external nonReentrant returns (bool) {
-        return transferTokens(msg.sender, src, dst, amount) == uint(Error.NO_ERROR);
+        return transferTokens(msg.sender, src, dst, amount) == NO_ERROR;
     }
 
     /**
@@ -187,7 +187,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         uint borrowBalance = borrowBalanceStoredInternal(account);
         uint exchangeRateMantissa = exchangeRateStoredInternal();
 
-        return (uint(Error.NO_ERROR), cTokenBalance, borrowBalance, exchangeRateMantissa);
+        return (NO_ERROR, cTokenBalance, borrowBalance, exchangeRateMantissa);
     }
 
     /**
@@ -219,7 +219,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      * @return The total borrows with interest
      */
     function totalBorrowsCurrent() override external nonReentrant returns (uint) {
-        require(accrueInterest() == uint(Error.NO_ERROR), "accrue interest failed");
+        require(accrueInterest() == NO_ERROR, "accrue interest failed");
         return totalBorrows;
     }
 
@@ -229,7 +229,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      * @return The calculated balance
      */
     function borrowBalanceCurrent(address account) override external nonReentrant returns (uint) {
-        require(accrueInterest() == uint(Error.NO_ERROR), "accrue interest failed");
+        require(accrueInterest() == NO_ERROR, "accrue interest failed");
         return borrowBalanceStored(account);
     }
 
@@ -270,7 +270,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      * @return Calculated exchange rate scaled by 1e18
      */
     function exchangeRateCurrent() override public nonReentrant returns (uint) {
-        require(accrueInterest() == uint(Error.NO_ERROR), "accrue interest failed");
+        require(accrueInterest() == NO_ERROR, "accrue interest failed");
         return exchangeRateStored();
     }
 
@@ -329,7 +329,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         /* Short-circuit accumulating 0 interest */
         if (accrualBlockNumberPrior == currentBlockNumber) {
-            return uint(Error.NO_ERROR);
+            return NO_ERROR;
         }
 
         /* Read the previous values out of storage */
@@ -356,7 +356,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         Exp memory simpleInterestFactor = mul_(Exp({mantissa: borrowRateMantissa}), blockDelta);
         uint interestAccumulated = mul_ScalarTruncate(simpleInterestFactor, borrowsPrior);
-        uint totalBorrowsNew = add_(interestAccumulated, borrowsPrior, "ACCRUE_INTEREST_NEW_TOTAL_BORROWS_CALCULATION_FAILED");
+        uint totalBorrowsNew = add_(interestAccumulated, borrowsPrior);
         uint totalReservesNew = mul_ScalarTruncateAddUInt(Exp({mantissa: reserveFactorMantissa}), interestAccumulated, reservesPrior);
         uint borrowIndexNew = mul_ScalarTruncateAddUInt(simpleInterestFactor, borrowIndexPrior, borrowIndexPrior);
 
@@ -373,7 +373,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         /* We emit an AccrueInterest event */
         emit AccrueInterest(cashPrior, interestAccumulated, borrowIndexNew, totalBorrowsNew);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -384,7 +384,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function mintInternal(uint mintAmount) internal nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
             revert MintAccrueInterestFailed(error);
         }
@@ -435,15 +435,11 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
-         *  totalSupplyNew = totalSupply + mintTokens
-         *  accountTokensNew = accountTokens[minter] + mintTokens
+         *  totalSupply = totalSupply + mintTokens
+         *  accountTokens[minter] = accountTokens[minter] + mintTokens
          */
-        uint totalSupplyNew = totalSupply + mintTokens;
-        uint accountTokensNew = accountTokens[minter] + mintTokens;
-
-        /* We write previously calculated values into storage */
-        totalSupply = totalSupplyNew;
-        accountTokens[minter] = accountTokensNew;
+        totalSupply = add_(totalSupply, mintTokens);
+        accountTokens[minter] = add_(accountTokens[minter], mintTokens);
 
         /* We emit a Mint event, and a Transfer event */
         emit Mint(minter, actualMintAmount, mintTokens);
@@ -459,7 +455,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function redeemInternal(uint redeemTokens) internal nonReentrant {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted redeem failed
             revert RedeemAccrueInterestFailed(error);
         }
@@ -474,7 +470,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function redeemUnderlyingInternal(uint redeemAmount) internal nonReentrant {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted redeem failed
             revert RedeemAccrueInterestFailed(error);
         }
@@ -494,8 +490,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         uint redeemTokens;
         uint redeemAmount;
-        uint totalSupplyNew;
-        uint accountTokensNew;
 
         /* exchangeRate = invoke Exchange Rate Stored() */
         uint exchangeRateMantissa = exchangeRateStoredInternal();
@@ -536,8 +530,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalSupplyNew = totalSupply - redeemTokens
          *  accountTokensNew = accountTokens[redeemer] - redeemTokens
          */
-        totalSupplyNew = totalSupply - redeemTokens;
-        accountTokensNew = accountTokens[redeemer] - redeemTokens;
+        uint totalSupplyNew = sub_(totalSupply, redeemTokens);
+        uint accountTokensNew = sub_(accountTokens[redeemer], redeemTokens);
 
         /* Fail gracefully if protocol has insufficient cash */
         if (getCashPrior() < redeemAmount) {
@@ -574,7 +568,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
       */
     function borrowInternal(uint borrowAmount) internal nonReentrant {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
             revert BorrowAccrueInterestFailed(error);
         }
@@ -609,8 +603,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalBorrowsNew = totalBorrows + borrowAmount
          */
         uint accountBorrow = borrowBalanceStoredInternal(borrower);
-        uint accountBorrowNew = add_(accountBorrow, borrowAmount, "BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED");
-        uint totalBorrowsNew = add_(totalBorrows, borrowAmount, "BORROW_NEW_TOTAL_BALANCE_CALCULATION_FAILED");
+        uint accountBorrowNew = add_(accountBorrow, borrowAmount);
+        uint totalBorrowsNew = add_(totalBorrows, borrowAmount);
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -640,7 +634,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function repayBorrowInternal(uint repayAmount) internal nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
             revert RepayBorrowAccrueInterestFailed(error);
         }
@@ -656,7 +650,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function repayBorrowBehalfInternal(address borrower, uint repayAmount) internal nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted borrow failed
             revert RepayBehalfAccrueInterestFailed(error);
         }
@@ -710,8 +704,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  accountBorrowNew = accountBorrow - actualRepayAmount
          *  totalBorrowsNew = totalBorrows - actualRepayAmount
          */
-        uint accountBorrowNew = sub_(accountBorrow, actualRepayAmount, "REPAY_BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED");
-        uint totalBorrowsNew = sub_(totalBorrows, actualRepayAmount, "REPAY_BORROW_NEW_TOTAL_BALANCE_CALCULATION_FAILED");
+        uint accountBorrowNew = sub_(accountBorrow, actualRepayAmount);
+        uint totalBorrowsNew = sub_(totalBorrows, actualRepayAmount);
 
         /* We write the previously calculated values into storage */
         accountBorrows[borrower].principal = accountBorrowNew;
@@ -734,13 +728,13 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function liquidateBorrowInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted liquidation failed
             revert LiquidateAccrueBorrowInterestFailed(error);
         }
 
         error = cTokenCollateral.accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but we still want to log the fact that an attempted liquidation failed
             revert LiquidateAccrueCollateralInterestFailed(error);
         }
@@ -799,7 +793,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         /* We calculate the number of collateral tokens that will be seized */
         (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateCalculateSeizeTokens(address(this), address(cTokenCollateral), actualRepayAmount);
-        require(amountSeizeError == uint(Error.NO_ERROR), "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
+        require(amountSeizeError == NO_ERROR, "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
 
         /* Revert if borrower collateral token balance < seizeTokens */
         require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
@@ -808,7 +802,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         if (address(cTokenCollateral) == address(this)) {
             seizeInternal(address(this), liquidator, borrower, seizeTokens);
         } else {
-            require(cTokenCollateral.seize(liquidator, borrower, seizeTokens) == uint(Error.NO_ERROR), "token seizure failed");
+            require(cTokenCollateral.seize(liquidator, borrower, seizeTokens) == NO_ERROR, "token seizure failed");
         }
 
         /* We emit a LiquidateBorrow event */
@@ -828,7 +822,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function seize(address liquidator, address borrower, uint seizeTokens) override external nonReentrant returns (uint) {
         seizeInternal(msg.sender, liquidator, borrower, seizeTokens);
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -857,7 +851,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  borrowerTokensNew = accountTokens[borrower] - seizeTokens
          *  liquidatorTokensNew = accountTokens[liquidator] + seizeTokens
          */
-        uint borrowerTokensNew = sub_(accountTokens[borrower], seizeTokens, "LIQUIDATE_SEIZE_BALANCE_DECREMENT_FAILED");
+        uint borrowerTokensNew = sub_(accountTokens[borrower], seizeTokens);
         uint protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
         uint liquidatorSeizeTokens = sub_(seizeTokens, protocolSeizeTokens);
 
@@ -867,7 +861,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         uint totalReservesNew = add_(totalReserves, protocolSeizeAmount);
         uint totalSupplyNew = sub_(totalSupply, protocolSeizeTokens);
 
-        uint liquidatorTokensNew = add_(accountTokens[liquidator], liquidatorSeizeTokens, "LIQUIDATE_SEIZE_BALANCE_INCREMENT_FAILED");
+        uint liquidatorTokensNew = add_(accountTokens[liquidator], liquidatorSeizeTokens);
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -909,7 +903,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         // Emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin)
         emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -936,7 +930,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         emit NewAdmin(oldAdmin, admin);
         emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -960,7 +954,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         // Emit NewComptroller(oldComptroller, newComptroller)
         emit NewComptroller(oldComptroller, newComptroller);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -970,7 +964,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
       */
     function _setReserveFactor(uint newReserveFactorMantissa) override external nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted reserve factor change failed.
             revert SetReserveFactorAccrueInterestFailed(error);
         }
@@ -1004,7 +998,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         emit NewReserveFactor(oldReserveFactorMantissa, newReserveFactorMantissa);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -1014,7 +1008,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function _addReservesInternal(uint addAmount) internal nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted reduce reserves failed.
             revert AddReservesAccrueInterestFailed(error);
         }
@@ -1066,7 +1060,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         emit ReservesAdded(msg.sender, actualAddAmount, totalReservesNew);
 
         /* Return (NO_ERROR, actualAddAmount) */
-        return (uint(Error.NO_ERROR), actualAddAmount);
+        return (NO_ERROR, actualAddAmount);
     }
 
 
@@ -1077,7 +1071,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function _reduceReserves(uint reduceAmount) override external nonReentrant returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted reduce reserves failed.
             revert ReduceReservesAccrueInterestFailed(error);
         }
@@ -1131,7 +1125,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         emit ReservesReduced(admin, reduceAmount, totalReservesNew);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /**
@@ -1142,7 +1136,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function _setInterestRateModel(InterestRateModel newInterestRateModel) override public returns (uint) {
         uint error = accrueInterest();
-        if (error != uint(Error.NO_ERROR)) {
+        if (error != NO_ERROR) {
             // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted change of interest rate model failed
             revert SetInterestRateModelAccrueInterestFailed(error);
         }
@@ -1183,7 +1177,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         // Emit NewMarketInterestRateModel(oldInterestRateModel, newInterestRateModel)
         emit NewMarketInterestRateModel(oldInterestRateModel, newInterestRateModel);
 
-        return uint(Error.NO_ERROR);
+        return NO_ERROR;
     }
 
     /*** Safe Token ***/
