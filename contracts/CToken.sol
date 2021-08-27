@@ -12,7 +12,7 @@ import "./ExponentialNoError.sol";
  * @notice Abstract base for CTokens
  * @author Compound
  */
-abstract contract CToken is CTokenInterface, ExponentialNoError {
+abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorReporter {
     /**
      * @notice Initialize the money market
      * @param comptroller_ The address of the Comptroller
@@ -393,6 +393,14 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         return mintFresh(msg.sender, mintAmount);
     }
 
+    struct MintLocalVars {
+        uint exchangeRateMantissa;
+        uint mintTokens;
+        uint totalSupplyNew;
+        uint accountTokensNew;
+        uint actualMintAmount;
+    }
+
     /**
      * @notice User supplies assets into the market and receives cTokens in exchange
      * @dev Assumes interest has already been accrued up to the current block
@@ -412,7 +420,9 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
             revert MintFreshnessCheck();
         }
 
-        Exp memory exchangeRate = Exp({mantissa: exchangeRateCurrent()});
+        MintLocalVars memory vars;
+
+        vars.exchangeRateMantissa = exchangeRateStoredInternal();
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -426,27 +436,36 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  in case of a fee. On success, the cToken holds an additional `actualMintAmount`
          *  of cash.
          */
-        uint actualMintAmount = doTransferIn(minter, mintAmount);
+        vars.actualMintAmount = doTransferIn(minter, mintAmount);
 
         /*
          * We get the current exchange rate and calculate the number of cTokens to be minted:
          *  mintTokens = actualMintAmount / exchangeRate
          */
-        uint mintTokens = div_(actualMintAmount, exchangeRate);
+
+        vars.mintTokens = div_(vars.actualMintAmount, Exp({mantissa: vars.exchangeRateMantissa}));
 
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
-         *  totalSupply = totalSupply + mintTokens
-         *  accountTokens[minter] = accountTokens[minter] + mintTokens
+         *  totalSupplyNew = totalSupply + mintTokens
+         *  accountTokensNew = accountTokens[minter] + mintTokens
          */
-        totalSupply = totalSupply + mintTokens;
-        accountTokens[minter] = accountTokens[minter] + mintTokens;
+        vars.totalSupplyNew = totalSupply + vars.mintTokens;
+        vars.accountTokensNew = accountTokens[minter] + vars.mintTokens;
+
+        /* We write previously calculated values into storage */
+        totalSupply = vars.totalSupplyNew;
+        accountTokens[minter] = vars.accountTokensNew;
 
         /* We emit a Mint event, and a Transfer event */
-        emit Mint(minter, actualMintAmount, mintTokens);
-        emit Transfer(address(this), minter, mintTokens);
+        emit Mint(minter, vars.actualMintAmount, vars.mintTokens);
+        emit Transfer(address(this), minter, vars.mintTokens);
 
-        return actualMintAmount;
+        /* We call the defense hook */
+        // unused function
+        // comptroller.mintVerify(address(this), minter, vars.actualMintAmount, vars.mintTokens);
+
+        return vars.actualMintAmount;
     }
 
     /**
@@ -476,7 +495,15 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
             revert RedeemAccrueInterestFailed(error);
         }
         // redeemFresh emits redeem-specific logs on errors, so we don't need to
-        return redeemFresh(payable(msg.sender), 0, redeemAmount);
+        redeemFresh(payable(msg.sender), 0, redeemAmount);
+    }
+
+    struct RedeemLocalVars {
+        uint exchangeRateMantissa;
+        uint redeemTokens;
+        uint redeemAmount;
+        uint totalSupplyNew;
+        uint accountTokensNew;
     }
 
     /**
@@ -489,11 +516,10 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
     function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) internal {
         require(redeemTokensIn == 0 || redeemAmountIn == 0, "one of redeemTokensIn or redeemAmountIn must be zero");
 
-        uint redeemTokens;
-        uint redeemAmount;
+        RedeemLocalVars memory vars;
 
         /* exchangeRate = invoke Exchange Rate Stored() */
-        Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
+        vars.exchangeRateMantissa = exchangeRateStoredInternal();
 
         /* If redeemTokensIn > 0: */
         if (redeemTokensIn > 0) {
@@ -502,20 +528,20 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
              *  redeemTokens = redeemTokensIn
              *  redeemAmount = redeemTokensIn x exchangeRateCurrent
              */
-            redeemTokens = redeemTokensIn;
-            redeemAmount = mul_ScalarTruncate(exchangeRate, redeemTokensIn);
+            vars.redeemTokens = redeemTokensIn;
+            vars.redeemAmount = mul_ScalarTruncate(Exp({mantissa: vars.exchangeRateMantissa}), redeemTokensIn);
         } else {
             /*
              * We get the current exchange rate and calculate the amount to be redeemed:
              *  redeemTokens = redeemAmountIn / exchangeRate
              *  redeemAmount = redeemAmountIn
              */
-            redeemTokens = div_(redeemAmountIn, exchangeRate);
-            redeemAmount = redeemAmountIn;
+            vars.redeemTokens = div_(redeemAmountIn, Exp({mantissa: vars.exchangeRateMantissa}));
+            vars.redeemAmount = redeemAmountIn;
         }
 
         /* Fail if redeem not allowed */
-        uint allowed = comptroller.redeemAllowed(address(this), redeemer, redeemTokens);
+        uint allowed = comptroller.redeemAllowed(address(this), redeemer, vars.redeemTokens);
         if (allowed != 0) {
             revert RedeemComptrollerRejection(allowed);
         }
@@ -530,11 +556,11 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalSupplyNew = totalSupply - redeemTokens
          *  accountTokensNew = accountTokens[redeemer] - redeemTokens
          */
-        uint totalSupplyNew = totalSupply - redeemTokens;
-        uint accountTokensNew = accountTokens[redeemer] - redeemTokens;
+        vars.totalSupplyNew = totalSupply - vars.redeemTokens;
+        vars.accountTokensNew = accountTokens[redeemer] - vars.redeemTokens;
 
         /* Fail gracefully if protocol has insufficient cash */
-        if (getCashPrior() < redeemAmount) {
+        if (getCashPrior() < vars.redeemAmount) {
             revert RedeemTransferOutNotPossible();
         }
 
@@ -548,18 +574,18 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  On success, the cToken has redeemAmount less of cash.
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
-        doTransferOut(redeemer, redeemAmount);
+        doTransferOut(redeemer, vars.redeemAmount);
 
         /* We write previously calculated values into storage */
-        totalSupply = totalSupplyNew;
-        accountTokens[redeemer] = accountTokensNew;
+        totalSupply = vars.totalSupplyNew;
+        accountTokens[redeemer] = vars.accountTokensNew;
 
         /* We emit a Transfer event, and a Redeem event */
-        emit Transfer(redeemer, address(this), redeemTokens);
-        emit Redeem(redeemer, redeemAmount, redeemTokens);
+        emit Transfer(redeemer, address(this), vars.redeemTokens);
+        emit Redeem(redeemer, vars.redeemAmount, vars.redeemTokens);
 
         /* We call the defense hook */
-        comptroller.redeemVerify(address(this), redeemer, redeemAmount, redeemTokens);
+        comptroller.redeemVerify(address(this), redeemer, vars.redeemAmount, vars.redeemTokens);
     }
 
     /**
@@ -574,6 +600,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         }
         // borrowFresh emits borrow-specific logs on errors, so we don't need to
         borrowFresh(payable(msg.sender), borrowAmount);
+    }
+
+    struct BorrowLocalVars {
+        uint accountBorrows;
+        uint accountBorrowsNew;
+        uint totalBorrowsNew;
     }
 
     /**
@@ -594,17 +626,19 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         /* Fail gracefully if protocol has insufficient underlying cash */
         if (getCashPrior() < borrowAmount) {
-           revert BorrowCashNotAvailable();
+            revert BorrowCashNotAvailable();
         }
+
+        BorrowLocalVars memory vars;
 
         /*
          * We calculate the new borrower and total borrow balances, failing on overflow:
          *  accountBorrowNew = accountBorrow + borrowAmount
          *  totalBorrowsNew = totalBorrows + borrowAmount
          */
-        uint accountBorrow = borrowBalanceStoredInternal(borrower);
-        uint accountBorrowNew = accountBorrow + borrowAmount;
-        uint totalBorrowsNew = totalBorrows + borrowAmount;
+        vars.accountBorrows = borrowBalanceStoredInternal(borrower);
+        vars.accountBorrowsNew = vars.accountBorrows + borrowAmount;
+        vars.totalBorrowsNew = totalBorrows + borrowAmount;
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -619,12 +653,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         doTransferOut(borrower, borrowAmount);
 
         /* We write the previously calculated values into storage */
-        accountBorrows[borrower].principal = accountBorrowNew;
+        accountBorrows[borrower].principal = vars.accountBorrowsNew;
         accountBorrows[borrower].interestIndex = borrowIndex;
-        totalBorrows = totalBorrowsNew;
+        totalBorrows = vars.totalBorrowsNew;
 
         /* We emit a Borrow event */
-        emit Borrow(borrower, borrowAmount, accountBorrowNew, totalBorrowsNew);
+        emit Borrow(borrower, borrowAmount, vars.accountBorrowsNew, vars.totalBorrowsNew);
     }
 
     /**
@@ -658,6 +692,15 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         return repayBorrowFresh(msg.sender, borrower, repayAmount);
     }
 
+    struct RepayBorrowLocalVars {
+        uint repayAmountFinal;
+        uint borrowerIndex;
+        uint accountBorrows;
+        uint accountBorrowsNew;
+        uint totalBorrowsNew;
+        uint actualRepayAmount;
+    }
+
     /**
      * @notice Borrows are repaid by another user (possibly the borrower).
      * @param payer the account paying off the borrow
@@ -677,14 +720,16 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
             revert RepayBorrowFreshnessCheck();
         }
 
+        RepayBorrowLocalVars memory vars;
+
         /* We remember the original borrowerIndex for verification purposes */
-        uint borrowerIndex = accountBorrows[borrower].interestIndex;
+        vars.borrowerIndex = accountBorrows[borrower].interestIndex;
 
         /* We fetch the amount the borrower owes, with accumulated interest */
-        uint accountBorrow = borrowBalanceStoredInternal(borrower);
+        vars.accountBorrows = borrowBalanceStoredInternal(borrower);
 
-        /* If repayAmount == -1, repayAmount = accountBorrow */
-        uint repayAmountFinal = repayAmount == type(uint).max ? accountBorrow : repayAmount;
+        /* If repayAmount == -1, repayAmount = accountBorrows */
+        vars.repayAmountFinal = repayAmount == type(uint).max ? vars.accountBorrows : repayAmount;
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -697,25 +742,25 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  doTransferIn reverts if anything goes wrong, since we can't be sure if side effects occurred.
          *   it returns the amount actually transferred, in case of a fee.
          */
-        uint actualRepayAmount = doTransferIn(payer, repayAmountFinal);
+        vars.actualRepayAmount = doTransferIn(payer, vars.repayAmountFinal);
 
         /*
          * We calculate the new borrower and total borrow balances, failing on underflow:
-         *  accountBorrowNew = accountBorrow - actualRepayAmount
+         *  accountBorrowsNew = accountBorrows - actualRepayAmount
          *  totalBorrowsNew = totalBorrows - actualRepayAmount
          */
-        uint accountBorrowNew = accountBorrow - actualRepayAmount;
-        uint totalBorrowsNew = totalBorrows - actualRepayAmount;
+        vars.accountBorrowsNew = vars.accountBorrows - vars.actualRepayAmount;
+        vars.totalBorrowsNew = totalBorrows - vars.actualRepayAmount;
 
         /* We write the previously calculated values into storage */
-        accountBorrows[borrower].principal = accountBorrowNew;
+        accountBorrows[borrower].principal = vars.accountBorrowsNew;
         accountBorrows[borrower].interestIndex = borrowIndex;
-        totalBorrows = totalBorrowsNew;
+        totalBorrows = vars.totalBorrowsNew;
 
         /* We emit a RepayBorrow event */
-        emit RepayBorrow(payer, borrower, actualRepayAmount, accountBorrowNew, totalBorrowsNew);
+        emit RepayBorrow(payer, borrower, vars.actualRepayAmount, vars.accountBorrowsNew, vars.totalBorrowsNew);
 
-        return actualRepayAmount;
+        return vars.actualRepayAmount;
     }
 
     /**
@@ -822,7 +867,19 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      */
     function seize(address liquidator, address borrower, uint seizeTokens) override external nonReentrant returns (uint) {
         seizeInternal(msg.sender, liquidator, borrower, seizeTokens);
+
         return NO_ERROR;
+    }
+
+    struct SeizeInternalLocalVars {
+        uint borrowerTokensNew;
+        uint liquidatorTokensNew;
+        uint liquidatorSeizeTokens;
+        uint protocolSeizeTokens;
+        uint protocolSeizeAmount;
+        uint exchangeRateMantissa;
+        uint totalReservesNew;
+        uint totalSupplyNew;
     }
 
     /**
@@ -846,37 +903,39 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
             revert LiquidateSeizeLiquidatorIsBorrower();
         }
 
+        SeizeInternalLocalVars memory vars;
+
         /*
          * We calculate the new borrower and liquidator token balances, failing on underflow/overflow:
          *  borrowerTokensNew = accountTokens[borrower] - seizeTokens
          *  liquidatorTokensNew = accountTokens[liquidator] + seizeTokens
          */
-        uint borrowerTokensNew = accountTokens[borrower] - seizeTokens;
-        uint protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
-        uint liquidatorSeizeTokens = seizeTokens - protocolSeizeTokens;
+        vars.borrowerTokensNew = accountTokens[borrower] - seizeTokens;
+        vars.protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
+        vars.liquidatorSeizeTokens = seizeTokens - vars.protocolSeizeTokens;
 
-        Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
-        uint protocolSeizeAmount = mul_ScalarTruncate(exchangeRate, protocolSeizeTokens);
+        vars.exchangeRateMantissa = exchangeRateStoredInternal();
+        vars.protocolSeizeAmount = mul_ScalarTruncate(Exp({mantissa: vars.exchangeRateMantissa}), vars.protocolSeizeTokens);
 
-        uint totalReservesNew = totalReserves + protocolSeizeAmount;
-        uint totalSupplyNew = totalSupply - protocolSeizeTokens;
+        vars.totalReservesNew = totalReserves + vars.protocolSeizeAmount;
+        vars.totalSupplyNew = totalSupply - vars.protocolSeizeTokens;
 
-        uint liquidatorTokensNew = accountTokens[liquidator] + liquidatorSeizeTokens;
+        vars.liquidatorTokensNew = accountTokens[liquidator] + vars.liquidatorSeizeTokens;
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
         /* We write the previously calculated values into storage */
-        totalReserves = totalReservesNew;
-        totalSupply = totalSupplyNew;
-        accountTokens[borrower] = borrowerTokensNew;
-        accountTokens[liquidator] = liquidatorTokensNew;
+        totalReserves = vars.totalReservesNew;
+        totalSupply = vars.totalSupplyNew;
+        accountTokens[borrower] = vars.borrowerTokensNew;
+        accountTokens[liquidator] = vars.liquidatorTokensNew;
 
         /* Emit a Transfer event */
-        emit Transfer(borrower, liquidator, liquidatorSeizeTokens);
-        emit Transfer(borrower, address(this), protocolSeizeTokens);
-        emit ReservesAdded(address(this), protocolSeizeAmount, totalReservesNew);
+        emit Transfer(borrower, liquidator, vars.liquidatorSeizeTokens);
+        emit Transfer(borrower, address(this), vars.protocolSeizeTokens);
+        emit ReservesAdded(address(this), vars.protocolSeizeAmount, vars.totalReservesNew);
     }
 
 
