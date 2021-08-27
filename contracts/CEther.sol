@@ -128,7 +128,7 @@ contract CEther is CToken {
      * @return The quantity of Ether owned by this contract
      */
     function getCashPrior() override internal view returns (uint) {
-        return sub_(address(this).balance, msg.value);
+        return address(this).balance - msg.value;
     }
 
     /**

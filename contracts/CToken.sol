@@ -85,9 +85,9 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         }
 
         /* Do the calculations, checking for {under,over}flow */
-        uint allowanceNew = sub_(startingAllowance, tokens);
-        uint srcTokensNew = sub_(accountTokens[src], tokens);
-        uint dstTokensNew = add_(accountTokens[dst], tokens);
+        uint allowanceNew = startingAllowance - tokens;
+        uint srcTokensNew = accountTokens[src] - tokens;
+        uint dstTokensNew = accountTokens[dst] + tokens;
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -183,11 +183,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
      * @return (possible error, token balance, borrow balance, exchange rate mantissa)
      */
     function getAccountSnapshot(address account) override external view returns (uint, uint, uint, uint) {
-        uint cTokenBalance = accountTokens[account];
-        uint borrowBalance = borrowBalanceStoredInternal(account);
-        uint exchangeRateMantissa = exchangeRateStoredInternal();
-
-        return (NO_ERROR, cTokenBalance, borrowBalance, exchangeRateMantissa);
+        return (
+            NO_ERROR,
+            accountTokens[account],
+            borrowBalanceStoredInternal(account),
+            exchangeRateStoredInternal()
+        );
     }
 
     /**
@@ -261,8 +262,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         /* Calculate new borrow balance using the interest index:
          *  recentBorrowBalance = borrower.borrowBalance * market.borrowIndex / borrower.borrowIndex
          */
-        uint principalTimesIndex = mul_(borrowSnapshot.principal, borrowIndex);
-        return div_(principalTimesIndex, borrowSnapshot.interestIndex);
+        uint principalTimesIndex = borrowSnapshot.principal * borrowIndex;
+        return principalTimesIndex / borrowSnapshot.interestIndex;
     }
 
     /**
@@ -302,8 +303,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
              *  exchangeRate = (totalCash + totalBorrows - totalReserves) / totalSupply
              */
             uint totalCash = getCashPrior();
-            uint cashPlusBorrowsMinusReserves = sub_(add_(totalCash, totalBorrows), totalReserves);
-            Exp memory exchangeRate = div_(Exp({mantissa: cashPlusBorrowsMinusReserves * expScale}), _totalSupply);
+            uint cashPlusBorrowsMinusReserves = totalCash + totalBorrows / totalReserves;
+            Exp memory exchangeRate = Exp({mantissa: cashPlusBorrowsMinusReserves * expScale / _totalSupply});
 
             return exchangeRate.mantissa;
         }
@@ -343,7 +344,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         require(borrowRateMantissa <= borrowRateMaxMantissa, "borrow rate is absurdly high");
 
         /* Calculate the number of blocks elapsed since the last accrual */
-        uint blockDelta = sub_(currentBlockNumber, accrualBlockNumberPrior, "could not calculate block delta");
+        uint blockDelta = currentBlockNumber - accrualBlockNumberPrior;
 
         /*
          * Calculate the interest accumulated into borrows and reserves and the new index:
@@ -356,7 +357,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
 
         Exp memory simpleInterestFactor = mul_(Exp({mantissa: borrowRateMantissa}), blockDelta);
         uint interestAccumulated = mul_ScalarTruncate(simpleInterestFactor, borrowsPrior);
-        uint totalBorrowsNew = add_(interestAccumulated, borrowsPrior);
+        uint totalBorrowsNew = interestAccumulated + borrowsPrior;
         uint totalReservesNew = mul_ScalarTruncateAddUInt(Exp({mantissa: reserveFactorMantissa}), interestAccumulated, reservesPrior);
         uint borrowIndexNew = mul_ScalarTruncateAddUInt(simpleInterestFactor, borrowIndexPrior, borrowIndexPrior);
 
@@ -411,7 +412,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
             revert MintFreshnessCheck();
         }
 
-        uint exchangeRateMantissa = exchangeRateStoredInternal();
+        Exp memory exchangeRate = Exp({mantissa: exchangeRateCurrent()});
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -431,15 +432,15 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          * We get the current exchange rate and calculate the number of cTokens to be minted:
          *  mintTokens = actualMintAmount / exchangeRate
          */
-        uint mintTokens = div_(actualMintAmount, Exp({mantissa: exchangeRateMantissa}));
+        uint mintTokens = div_(actualMintAmount, exchangeRate);
 
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
          *  totalSupply = totalSupply + mintTokens
          *  accountTokens[minter] = accountTokens[minter] + mintTokens
          */
-        totalSupply = add_(totalSupply, mintTokens);
-        accountTokens[minter] = add_(accountTokens[minter], mintTokens);
+        totalSupply = totalSupply + mintTokens;
+        accountTokens[minter] = accountTokens[minter] + mintTokens;
 
         /* We emit a Mint event, and a Transfer event */
         emit Mint(minter, actualMintAmount, mintTokens);
@@ -492,7 +493,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
         uint redeemAmount;
 
         /* exchangeRate = invoke Exchange Rate Stored() */
-        uint exchangeRateMantissa = exchangeRateStoredInternal();
+        Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
 
         /* If redeemTokensIn > 0: */
         if (redeemTokensIn > 0) {
@@ -502,15 +503,14 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
              *  redeemAmount = redeemTokensIn x exchangeRateCurrent
              */
             redeemTokens = redeemTokensIn;
-            redeemAmount = mul_ScalarTruncate(Exp({mantissa: exchangeRateMantissa}), redeemTokensIn);
+            redeemAmount = mul_ScalarTruncate(exchangeRate, redeemTokensIn);
         } else {
             /*
              * We get the current exchange rate and calculate the amount to be redeemed:
              *  redeemTokens = redeemAmountIn / exchangeRate
              *  redeemAmount = redeemAmountIn
              */
-
-            redeemTokens = div_(redeemAmountIn, Exp({mantissa: exchangeRateMantissa}));
+            redeemTokens = div_(redeemAmountIn, exchangeRate);
             redeemAmount = redeemAmountIn;
         }
 
@@ -530,8 +530,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalSupplyNew = totalSupply - redeemTokens
          *  accountTokensNew = accountTokens[redeemer] - redeemTokens
          */
-        uint totalSupplyNew = sub_(totalSupply, redeemTokens);
-        uint accountTokensNew = sub_(accountTokens[redeemer], redeemTokens);
+        uint totalSupplyNew = totalSupply - redeemTokens;
+        uint accountTokensNew = accountTokens[redeemer] - redeemTokens;
 
         /* Fail gracefully if protocol has insufficient cash */
         if (getCashPrior() < redeemAmount) {
@@ -603,8 +603,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  totalBorrowsNew = totalBorrows + borrowAmount
          */
         uint accountBorrow = borrowBalanceStoredInternal(borrower);
-        uint accountBorrowNew = add_(accountBorrow, borrowAmount);
-        uint totalBorrowsNew = add_(totalBorrows, borrowAmount);
+        uint accountBorrowNew = accountBorrow + borrowAmount;
+        uint totalBorrowsNew = totalBorrows + borrowAmount;
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
@@ -704,8 +704,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  accountBorrowNew = accountBorrow - actualRepayAmount
          *  totalBorrowsNew = totalBorrows - actualRepayAmount
          */
-        uint accountBorrowNew = sub_(accountBorrow, actualRepayAmount);
-        uint totalBorrowsNew = sub_(totalBorrows, actualRepayAmount);
+        uint accountBorrowNew = accountBorrow - actualRepayAmount;
+        uint totalBorrowsNew = totalBorrows - actualRepayAmount;
 
         /* We write the previously calculated values into storage */
         accountBorrows[borrower].principal = accountBorrowNew;
@@ -851,17 +851,17 @@ abstract contract CToken is CTokenInterface, ExponentialNoError {
          *  borrowerTokensNew = accountTokens[borrower] - seizeTokens
          *  liquidatorTokensNew = accountTokens[liquidator] + seizeTokens
          */
-        uint borrowerTokensNew = sub_(accountTokens[borrower], seizeTokens);
+        uint borrowerTokensNew = accountTokens[borrower] - seizeTokens;
         uint protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
-        uint liquidatorSeizeTokens = sub_(seizeTokens, protocolSeizeTokens);
+        uint liquidatorSeizeTokens = seizeTokens - protocolSeizeTokens;
 
-        uint exchangeRateMantissa = exchangeRateStoredInternal();
-        uint protocolSeizeAmount = mul_ScalarTruncate(Exp({mantissa: exchangeRateMantissa}), protocolSeizeTokens);
+        Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
+        uint protocolSeizeAmount = mul_ScalarTruncate(exchangeRate, protocolSeizeTokens);
 
-        uint totalReservesNew = add_(totalReserves, protocolSeizeAmount);
-        uint totalSupplyNew = sub_(totalSupply, protocolSeizeTokens);
+        uint totalReservesNew = totalReserves + protocolSeizeAmount;
+        uint totalSupplyNew = totalSupply - protocolSeizeTokens;
 
-        uint liquidatorTokensNew = add_(accountTokens[liquidator], liquidatorSeizeTokens);
+        uint liquidatorTokensNew = accountTokens[liquidator] + liquidatorSeizeTokens;
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
