@@ -75,7 +75,7 @@ describe('CEther', () => {
         await expect(mint(cToken, minter, mintAmount)).rejects.toRevert("revert INTEREST_RATE_MODEL_ERROR");
       });
 
-      it.only("returns success from mintFresh and mints the correct number of tokens", async () => {
+      it("returns success from mintFresh and mints the correct number of tokens", async () => {
         const beforeBalances = await getBalances([cToken], [minter]);
         const receipt = await mint(cToken, minter, mintAmount);
         const afterBalances = await getBalances([cToken], [minter]);

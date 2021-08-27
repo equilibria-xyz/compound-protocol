@@ -16,9 +16,9 @@ describe('CToken', function () {
 
   describe('_setComptroller', () => {
     it("should fail if called by non-admin", async () => {
-      expect(
-        await send(cToken, '_setComptroller', [newComptroller._address], { from: accounts[0] })
-      ).toHaveTokenFailure('UNAUTHORIZED', 'SET_COMPTROLLER_OWNER_CHECK');
+      await expect(
+        send(cToken, '_setComptroller', [newComptroller._address], { from: accounts[0] })
+      ).rejects.toRevertWithCustomERror('SetComptrollerOwnerCheck');
       expect(await call(cToken, 'comptroller')).toEqual(oldComptroller._address);
     });
 

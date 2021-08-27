@@ -22,17 +22,17 @@ describe('CToken', function () {
     });
 
     it("fails if called by non-admin", async () => {
-      expect(
-        await send(cToken, 'harnessSetInterestRateModelFresh', [newModel._address], {from: accounts[0]})
-      ).toHaveTokenFailure('UNAUTHORIZED', 'SET_INTEREST_RATE_MODEL_OWNER_CHECK');
+      await expect(
+        send(cToken, 'harnessSetInterestRateModelFresh', [newModel._address], {from: accounts[0]})
+      ).rejects.toREvertWithCustomError('SetInterestRateModelOwnerCheck');
       expect(await call(cToken, 'interestRateModel')).toEqual(oldModel._address);
     });
 
     it("fails if market not fresh", async () => {
       expect(await send(cToken, 'harnessFastForward', [5])).toSucceed();
-      expect(
-        await send(cToken, 'harnessSetInterestRateModelFresh', [newModel._address])
-      ).toHaveTokenFailure('MARKET_NOT_FRESH', 'SET_INTEREST_RATE_MODEL_FRESH_CHECK');
+      await expect(
+        send(cToken, 'harnessSetInterestRateModelFresh', [newModel._address])
+      ).rejects.toREvertWithCustomError('SetInterestRateModelFreshCheck');
       expect(await call(cToken, 'interestRateModel')).toEqual(oldModel._address);
     });
 
@@ -81,7 +81,7 @@ describe('CToken', function () {
     it("emits a set market interest rate model failure if interest accrual fails", async () => {
       await send(cToken.interestRateModel, 'setFailBorrowRate', [true]);
       await fastForward(cToken, 1);
-      await expect(send(cToken, '_setInterestRateModel', [newModel._address])).rejects.toRevert("revert INTEREST_RATE_MODEL_ERROR");
+      await expect(send(cToken, '_setInterestRateModel', [newModel._address])).rejects.toREvertWithCustomError('SetInterestRateModelAccrueInterestFailed', [11]);
     });
 
     it("returns error from _setInterestRateModelFresh without emitting any extra logs", async () => {
