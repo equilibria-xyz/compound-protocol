@@ -109,7 +109,7 @@ describe('CToken', function () {
 
     it("fails if exchange calculation fails", async () => {
       expect(await send(cToken, 'harnessSetExchangeRate', [0])).toSucceed();
-      await expect(mintFresh(cToken, minter, mintAmount)).rejects.toRevert('revert divide by zero');
+      await expect(mintFresh(cToken, minter, mintAmount)).rejects.toRevert();
     });
 
     it("fails if transferring in fails", async () => {
@@ -205,10 +205,10 @@ describe('CToken', function () {
       it("fails if exchange calculation fails", async () => {
         if (redeemFresh == redeemFreshTokens) {
           expect(await send(cToken, 'harnessSetExchangeRate', [UInt256Max()])).toSucceed();
-          await expect(redeemFresh(cToken, redeemer, redeemTokens, redeemAmount)).rejects.toRevert('revert multiplication overflow');
+          await expect(redeemFresh(cToken, redeemer, redeemTokens, redeemAmount)).rejects.toRevert();
         } else {
           expect(await send(cToken, 'harnessSetExchangeRate', [0])).toSucceed();
-          await expect(redeemFresh(cToken, redeemer, redeemTokens, redeemAmount)).rejects.toRevert('revert divide by zero');
+          await expect(redeemFresh(cToken, redeemer, redeemTokens, redeemAmount)).rejects.toRevert();
         }
       });
 

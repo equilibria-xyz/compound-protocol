@@ -20,11 +20,11 @@ function invert(object) {
 }
 
 function parse(reporter) {
-  const Error = reporter.subNodes.find(k => k.name == 'Error').members.reduce((obj, i, idx) => {
+  const Error = (reporter.subNodes.find(k => k.name == 'Error') || { members: [] }).members.reduce((obj, i, idx) => {
     obj[i.name] = `${idx}`
     return obj
   }, {});
-  const FailureInfo = reporter.subNodes.find(k => k.name == 'FailureInfo').members.reduce((obj, i, idx) => {
+  const FailureInfo = (reporter.subNodes.find(k => k.name == 'FailureInfo')  || { members: [] }).members.reduce((obj, i, idx) => {
     obj[i.name] = `${idx}`
     return obj
   }, {});
